@@ -14,6 +14,18 @@ enum class EliminationMethod {
   ADTDelayed,
 };
 
+enum class EliminationOrderHeuristic {
+  // Preserve the original state-elimination order: reverse reducible
+  // topological order when available, otherwise node iteration order.
+  Original,
+  // Eliminate low fan-in/fan-out nodes first and delay interface-like nodes.
+  MinPredSucc,
+  // Estimate incremental expression growth from M[i,k], M[k,k], and M[k,j].
+  ExpressionAware,
+  // Further penalize nodes whose self-loop closure is likely to be expensive.
+  StarRisk,
+};
+
 enum class OnNonConvergentStar {
   // Abort solve with NonConvergentStar status.
   Fail,
@@ -47,9 +59,13 @@ struct SolveDiagnostics final {
 
 struct EliminationOptions final {
   EliminationMethod Method = EliminationMethod::StateElimination;
+  EliminationOrderHeuristic OrderHeuristic =
+      EliminationOrderHeuristic::Original;
   OnNonConvergentStar NonConvergentStarPolicy = OnNonConvergentStar::Fail;
   // 0 means "use Problem.maxStarIterations()".
   std::size_t MaxStarIterations = 0;
+  // When true, build/store path expressions but skip final fact evaluation.
+  bool SkipFinalEval = false;
   // Reserved for future conditional collection. Diagnostics are currently
   // recorded unconditionally by the solver and attached to result metadata.
   bool RecordDiagnostics = true;

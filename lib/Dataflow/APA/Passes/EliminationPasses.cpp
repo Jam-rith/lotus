@@ -20,6 +20,12 @@ cl::opt<std::string> ElimMethodOpt(
     cl::desc("Elimination solver method: state|adt-simple|adt-delayed"),
     cl::init("state"));
 
+cl::opt<std::string> ElimOrderOpt(
+    "elim-order",
+    cl::desc(
+        "State-elimination order: original|min-pred-succ|expression-aware|star-risk"),
+    cl::init("original"));
+
 cl::opt<bool> ElimReachPrint("elim-reachable-print",
                              cl::desc("Print elimination reachability facts"),
                              cl::init(false));
@@ -70,6 +76,15 @@ EliminationOptions getElimOptions() {
     Opts.Method = EliminationMethod::ADTDelayed;
   } else {
     Opts.Method = EliminationMethod::StateElimination;
+  }
+  if (ElimOrderOpt == "min-pred-succ") {
+    Opts.OrderHeuristic = EliminationOrderHeuristic::MinPredSucc;
+  } else if (ElimOrderOpt == "expression-aware") {
+    Opts.OrderHeuristic = EliminationOrderHeuristic::ExpressionAware;
+  } else if (ElimOrderOpt == "star-risk") {
+    Opts.OrderHeuristic = EliminationOrderHeuristic::StarRisk;
+  } else {
+    Opts.OrderHeuristic = EliminationOrderHeuristic::Original;
   }
   return Opts;
 }
