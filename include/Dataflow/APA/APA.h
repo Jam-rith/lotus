@@ -6,6 +6,7 @@
 #include "Dataflow/APA/Core/PathExpr.h"
 #include "Dataflow/APA/Core/Problem.h"
 #include "Dataflow/APA/Core/Result.h"
+#include "Dataflow/APA/Importance/Importance.h"
 
 // Solver engines and LLVM adapters.
 #include "Dataflow/APA/Adapters/LLVM/ForwardProblem.h"

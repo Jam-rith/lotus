@@ -5,6 +5,7 @@
 
 set(APA_SOURCES
   Elimination.cpp
+  Importance/Importance.cpp
   Passes/EliminationPasses.cpp
   Analyses/Intra/IntraReachable.cpp
   Analyses/Intra/IntraConstantPropagation.cpp
