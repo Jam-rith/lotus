@@ -14,12 +14,16 @@
 //     Path-expression DAG and elimination-matrix statistics used to estimate
 //     expression growth, fill-in, reuse, and star risk.
 //
+//   Sparse/
+//     Compact compression-potential summaries for linear-chain sparsification.
+//
 // ImportanceModel and ImportancePolicy consume these layers but should not
 // collect raw facts themselves.
 #include "Dataflow/APA/Importance/ExpressionExplosion/ExpressionExplosion.h"
 #include "Dataflow/APA/Importance/Dynamic/DynamicImportance.h"
 #include "Dataflow/APA/Importance/ImportanceModel.h"
 #include "Dataflow/APA/Importance/ImportancePolicy.h"
+#include "Dataflow/APA/Importance/Sparse/SparseImportance.h"
 #include "Dataflow/APA/Importance/Static/StaticImportance.h"
 
 #endif // DATAFLOW_APA_IMPORTANCE_IMPORTANCE_H_
