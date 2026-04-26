@@ -14,7 +14,7 @@ namespace elimination {
 template <typename NodeT> class StateEliminationImportancePolicy {
 public:
   using node_t = NodeT;
-  using profile_t = ImportanceProfile<NodeT>;
+  using profile_t = StaticImportanceProfile<NodeT>;
   using model_t = ImportanceModel<NodeT>;
 
   StateEliminationImportancePolicy(const profile_t *Profile = nullptr,
@@ -35,7 +35,7 @@ private:
 template <typename NodeT> class ADTImportancePolicy {
 public:
   using node_t = NodeT;
-  using profile_t = ImportanceProfile<NodeT>;
+  using profile_t = StaticImportanceProfile<NodeT>;
   using model_t = ImportanceModel<NodeT>;
 
   ADTImportancePolicy(const profile_t *Profile = nullptr,
@@ -58,7 +58,7 @@ private:
 template <typename NodeT> class SparseCompressionImportancePolicy {
 public:
   using node_t = NodeT;
-  using profile_t = ImportanceProfile<NodeT>;
+  using profile_t = StaticImportanceProfile<NodeT>;
   using model_t = ImportanceModel<NodeT>;
 
   SparseCompressionImportancePolicy(const profile_t *Profile = nullptr,
@@ -80,7 +80,7 @@ private:
 template <typename NodeT> class DemandDrivenImportancePolicy {
 public:
   using node_t = NodeT;
-  using profile_t = ImportanceProfile<NodeT>;
+  using profile_t = StaticImportanceProfile<NodeT>;
   using model_t = ImportanceModel<NodeT>;
 
   DemandDrivenImportancePolicy(const profile_t *Profile = nullptr,
@@ -102,7 +102,7 @@ private:
 template <typename NodeT> class IncrementalUpdateImportancePolicy {
 public:
   using node_t = NodeT;
-  using profile_t = ImportanceProfile<NodeT>;
+  using profile_t = StaticImportanceProfile<NodeT>;
   using model_t = ImportanceModel<NodeT>;
 
   IncrementalUpdateImportancePolicy(const profile_t *Profile = nullptr,

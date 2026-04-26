@@ -1,7 +1,7 @@
 #ifndef DATAFLOW_APA_IMPORTANCE_IMPORTANCEMODEL_H_
 #define DATAFLOW_APA_IMPORTANCE_IMPORTANCEMODEL_H_
 
-#include "Dataflow/APA/Importance/ImportanceProfile.h"
+#include "Dataflow/APA/Importance/Static/StaticImportanceProfile.h"
 
 namespace elimination {
 
@@ -28,17 +28,17 @@ struct ImportanceModelConfig final {
 template <typename NodeT> class ImportanceModel {
 public:
   using node_t = NodeT;
-  using profile_t = ImportanceProfile<NodeT>;
-  using node_features_t = ImportanceNodeFeatures<NodeT>;
+  using profile_t = StaticImportanceProfile<NodeT>;
+  using node_importance_t = StaticNodeImportance<NodeT>;
 
   explicit ImportanceModel(ImportanceModelConfig Config = {})
       : Config(Config) {}
 
   // Stage-1 skeleton: concrete scoring equations are intentionally deferred.
   ImportanceScores scoreNode(const NodeT &Node,
-                             const node_features_t &Features) const {
+                             const node_importance_t &Importance) const {
     (void)Node;
-    (void)Features;
+    (void)Importance;
     return ImportanceScores();
   }
 
