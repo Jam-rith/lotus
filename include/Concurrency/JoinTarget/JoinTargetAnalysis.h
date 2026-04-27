@@ -13,6 +13,7 @@
 #ifndef JOIN_TARGET_ANALYSIS_H
 #define JOIN_TARGET_ANALYSIS_H
 
+#include "Concurrency/JoinTarget/JoinTargetInternal.h"
 #include "Concurrency/Utils/ThreadAPI.h"
 #include "Concurrency/Utils/ThreadMultiplicity.h"
 
@@ -21,7 +22,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include <llvm/Analysis/PostDominators.h>
+#include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/Instruction.h>
 #include <llvm/IR/Module.h>
 
@@ -30,6 +31,39 @@ class AliasAnalysisWrapper;
 } // namespace lotus
 
 namespace mhp {
+
+enum class JoinAmbiguityReason : uint8_t {
+  None = 0,
+  NoFeasibleInstance,
+  MultipleFeasibleInstances,
+  RepeatedForkSite,
+  UnknownExternalEffect,
+  PathMergedAlternatives,
+  WildcardLocation,
+};
+
+struct JoinPathAlternative {
+  const llvm::BasicBlock *incoming_block = nullptr;
+  std::vector<ThreadInstance> possible_instances;
+  std::vector<ThreadInstance> feasible_instances;
+  std::vector<const llvm::Instruction *> possible_forks;
+  std::vector<const llvm::Instruction *> feasible_forks;
+  std::vector<const llvm::Value *> related_handle_roots;
+  bool has_unknown_live_instance = false;
+};
+
+struct JoinResolution {
+  std::vector<ThreadInstance> possible_instances;
+  std::vector<ThreadInstance> feasible_instances;
+  std::vector<const llvm::Instruction *> possible_forks;
+  std::vector<const llvm::Instruction *> feasible_forks;
+  std::vector<const llvm::Value *> related_handle_roots;
+  std::vector<JoinPathAlternative> path_alternatives;
+  std::vector<JoinAmbiguityReason> ambiguity_reasons;
+  bool has_unknown_live_instance = false;
+  bool is_path_sensitive = false;
+  bool unambiguous = false;
+};
 
 /**
  * @brief For each pthread_join, the set of pthread_create calls that may be
@@ -63,6 +97,12 @@ public:
   std::vector<const llvm::Instruction *>
   getFeasibleJoinedForks(const llvm::Instruction *joinInst) const;
 
+  std::vector<ThreadInstance>
+  getPossibleJoinedInstances(const llvm::Instruction *joinInst) const;
+
+  std::vector<ThreadInstance>
+  getFeasibleJoinedInstances(const llvm::Instruction *joinInst) const;
+
   /**
    * @brief Return the single definite feasible fork for joinInst when provable.
    *
@@ -77,6 +117,8 @@ public:
    * join)
    */
   bool isUnambiguousJoin(const llvm::Instruction *joinInst) const;
+
+  JoinResolution getJoinResolution(const llvm::Instruction *joinInst) const;
 
   /**
    * @brief Trace an SSA pthread_t handle back to a stable origin when possible.
@@ -95,20 +137,42 @@ public:
                          std::unordered_set<const llvm::Value *> &roots);
 
 private:
+  using StateMap = JoinTargetStateMap;
+
   enum class CandidateCountKind { Zero, One, Many };
 
+  void buildFunctionSummaries();
   void collectForksAndJoins();
+  void analyzeFunction(const llvm::Function &func);
+  StateMap getEntryStateForFunction(const llvm::Function &func) const;
+  StateMap mergePredecessorStates(const llvm::BasicBlock *block) const;
+  bool transferInstruction(const llvm::Instruction &inst, StateMap &state) const;
+  bool applyCallEffect(const llvm::Instruction &inst, StateMap &state) const;
+  bool applyDirectCallSummary(const llvm::CallBase &call,
+                              const llvm::Function &callee,
+                              StateMap &state) const;
+  void recordJoinState(const llvm::Instruction *join_inst, const StateMap &state);
+  std::unordered_set<HandleLocation, HandleLocationHash>
+  resolveReadLocations(const llvm::Value *value) const;
+  std::unordered_set<HandleLocation, HandleLocationHash>
+  resolveWriteLocations(const llvm::Value *value) const;
+  bool overwriteLocation(StateMap &state, const HandleLocation &location,
+                         const HandleState &new_state) const;
+  bool killLocationFamily(StateMap &state, const HandleLocation &location) const;
+  HandleState getStateForValue(const llvm::Value *value,
+                               const StateMap &state) const;
+  bool mergeStateInto(StateMap &dst, const StateMap &src) const;
+  bool mergeHandleState(HandleState &dst, const HandleState &src) const;
+  ThreadInstance makeThreadInstance(const llvm::Instruction &forkInst) const;
+  JoinResolution buildResolutionFromState(const HandleState &state) const;
+  JoinResolution buildJoinResolution(const llvm::Instruction *joinInst,
+                                     const StateMap &state) const;
+  void finalizeJoinResolution(const llvm::Instruction *joinInst,
+                              JoinResolution &resolution) const;
+  bool addAmbiguityReason(JoinResolution &resolution,
+                          JoinAmbiguityReason reason) const;
   CandidateCountKind
   classifyJoinForks(const std::vector<const llvm::Instruction *> &forks) const;
-  std::vector<const llvm::Instruction *> filterTemporallyFeasibleForks(
-      const llvm::Instruction *joinInst,
-      const std::vector<const llvm::Instruction *> &forks) const;
-  bool forkMayReachJoinInFunction(const llvm::Instruction *forkInst,
-                                  const llvm::Instruction *joinInst) const;
-  bool joinMayReachForkInFunction(const llvm::Instruction *joinInst,
-                                  const llvm::Instruction *forkInst) const;
-  const llvm::PostDominatorTree &
-  getPostDominatorTree(const llvm::Function *func) const;
 
   llvm::Module &m_module;
   ThreadAPI *m_threadAPI;
@@ -116,18 +180,11 @@ private:
 
   std::vector<const llvm::Instruction *> m_forkInsts;
   std::vector<const llvm::Instruction *> m_joinInsts;
-  std::unordered_map<const llvm::Instruction *, const llvm::Value *>
-      m_forkToRoot;
-  std::unordered_map<const llvm::Instruction *,
-                     std::vector<const llvm::Instruction *>>
-      m_joinToForks;
-  std::unordered_map<const llvm::Instruction *,
-                     std::vector<const llvm::Instruction *>>
-      m_joinToFeasibleForks;
-  std::unordered_set<const llvm::Instruction *> m_unambiguousJoins;
-  mutable std::unordered_map<const llvm::Function *,
-                             std::unique_ptr<llvm::PostDominatorTree>>
-      m_postDomCache;
+  std::unordered_map<const llvm::Instruction *, JoinResolution>
+      m_joinResolutions;
+  std::unordered_map<const llvm::Function *, FunctionSummary> m_functionSummaries;
+  mutable std::unordered_map<const llvm::BasicBlock *, StateMap> m_blockInStates;
+  mutable std::unordered_map<const llvm::BasicBlock *, StateMap> m_blockOutStates;
   mutable std::unique_ptr<concurrency::ThreadMultiplicityAnalysis>
       m_threadMultiplicity;
 };
