@@ -1,9 +1,11 @@
 #ifndef DATAFLOW_APA_IMPORTANCE_DYNAMIC_DYNAMICSTRUCTURALSTATE_H_
 #define DATAFLOW_APA_IMPORTANCE_DYNAMIC_DYNAMICSTRUCTURALSTATE_H_
 
+#include <algorithm>
 #include <cstddef>
 #include <limits>
 #include <queue>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -39,7 +41,9 @@ public:
   DynamicStructuralState(adjacency_t Preds, adjacency_t Succs,
                          DynamicStructuralConfig Config = {})
       : Preds(std::move(Preds)), Succs(std::move(Succs)),
-        Config(std::move(Config)) {}
+        Config(std::move(Config)) {
+    resetCaches();
+  }
 
   static DynamicStructuralState fromSuccessors(
       const adjacency_t &Succs, DynamicStructuralConfig Config = {}) {
@@ -54,7 +58,96 @@ public:
     return DynamicStructuralState(std::move(Preds), Succs, std::move(Config));
   }
 
+  void initialize(const std::vector<bool> &Alive) {
+    CachedAlive = Alive;
+    CachedStats.assign(Succs.size(), DynamicStructuralNodeStats());
+    NeighborhoodDirty.assign(Succs.size(), true);
+    for (std::size_t Node = 0; Node < Succs.size(); ++Node) {
+      if (Node < CachedAlive.size() && CachedAlive[Node]) {
+        recomputeLocalCounts(Node);
+      }
+    }
+  }
+
+  std::vector<std::size_t> removeNode(std::size_t Node) {
+    ensureInitialized();
+    std::vector<std::size_t> Dirty;
+    if (Node >= CachedAlive.size() || Node >= CachedStats.size() ||
+        !CachedAlive[Node]) {
+      return Dirty;
+    }
+
+    CachedAlive[Node] = false;
+    CachedStats[Node] = DynamicStructuralNodeStats();
+    markNeighborhoodDirty(Node, Dirty);
+
+    for (const auto Pred : Preds[Node]) {
+      if (isAlive(Pred)) {
+        if (CachedStats[Pred].AliveSuccCount > 0) {
+          --CachedStats[Pred].AliveSuccCount;
+        }
+        refreshProduct(Pred);
+        markNeighborhoodDirty(Pred, Dirty);
+      }
+    }
+    for (const auto Succ : Succs[Node]) {
+      if (isAlive(Succ)) {
+        if (CachedStats[Succ].AlivePredCount > 0) {
+          --CachedStats[Succ].AlivePredCount;
+        }
+        refreshProduct(Succ);
+        markNeighborhoodDirty(Succ, Dirty);
+      }
+    }
+
+    return Dirty;
+  }
+
+  DynamicStructuralNodeStats snapshotNode(std::size_t Node) {
+    ensureInitialized();
+    if (Node >= CachedStats.size() || !isAlive(Node)) {
+      return DynamicStructuralNodeStats();
+    }
+    refreshNeighborhoodIfDirty(Node);
+    return CachedStats[Node];
+  }
+
   DynamicStructuralNodeStats snapshotNode(
+      std::size_t Node, const std::vector<bool> &Alive) {
+    if (Alive != CachedAlive) {
+      initialize(Alive);
+    }
+    return snapshotNode(Node);
+  }
+
+  std::vector<DynamicStructuralNodeStats> snapshotAll() {
+    ensureInitialized();
+    for (std::size_t Node = 0; Node < CachedStats.size(); ++Node) {
+      if (isAlive(Node)) {
+        refreshNeighborhoodIfDirty(Node);
+      }
+    }
+    return CachedStats;
+  }
+
+  std::vector<DynamicStructuralNodeStats>
+  snapshotAll(const std::vector<bool> &Alive) {
+    if (Alive != CachedAlive) {
+      initialize(Alive);
+    }
+    return snapshotAll();
+  }
+
+  std::vector<std::size_t> dirtyNodesAfterRemoval(std::size_t Node) const {
+    std::vector<std::size_t> Dirty;
+    if (Node >= Succs.size()) {
+      return Dirty;
+    }
+    collectNeighborhood(Node, Config.NeighborhoodDepth, Dirty);
+    return Dirty;
+  }
+
+  DynamicStructuralNodeStats computeUncachedSnapshot(
       std::size_t Node, const std::vector<bool> &Alive) const {
     DynamicStructuralNodeStats Snapshot;
     if (Node >= Succs.size() || Node >= Preds.size() || Node >= Alive.size() ||
@@ -71,11 +164,11 @@ public:
     return Snapshot;
   }
 
-  std::vector<DynamicStructuralNodeStats>
-  snapshotAll(const std::vector<bool> &Alive) const {
+  std::vector<DynamicStructuralNodeStats> computeUncachedSnapshotAll(
+      const std::vector<bool> &Alive) const {
     std::vector<DynamicStructuralNodeStats> Snapshots(Succs.size());
     for (std::size_t Node = 0; Node < Succs.size(); ++Node) {
-      Snapshots[Node] = snapshotNode(Node, Alive);
+      Snapshots[Node] = computeUncachedSnapshot(Node, Alive);
     }
     return Snapshots;
   }
@@ -83,8 +176,27 @@ public:
   const adjacency_t &preds() const { return Preds; }
   const adjacency_t &succs() const { return Succs; }
   const DynamicStructuralConfig &config() const { return Config; }
+  const std::vector<bool> &alive() const { return CachedAlive; }
 
 private:
+  void resetCaches() {
+    CachedAlive.assign(Succs.size(), true);
+    CachedStats.assign(Succs.size(), DynamicStructuralNodeStats());
+    NeighborhoodDirty.assign(Succs.size(), true);
+  }
+
+  void ensureInitialized() {
+    if (CachedStats.size() != Succs.size() ||
+        NeighborhoodDirty.size() != Succs.size()) {
+      resetCaches();
+      initialize(CachedAlive);
+    }
+  }
+
+  bool isAlive(std::size_t Node) const {
+    return Node < CachedAlive.size() && CachedAlive[Node];
+  }
+
   static std::size_t safeMul(std::size_t Lhs, std::size_t Rhs) {
     const auto Max = std::numeric_limits<std::size_t>::max();
     if (Lhs != 0 && Rhs > Max / Lhs) {
@@ -103,6 +215,77 @@ private:
       }
     }
     return Count;
+  }
+
+  void recomputeLocalCounts(std::size_t Node) {
+    if (Node >= CachedStats.size() || !isAlive(Node)) {
+      return;
+    }
+    CachedStats[Node].AlivePredCount =
+        countAlive(Preds[Node], CachedAlive, Node);
+    CachedStats[Node].AliveSuccCount =
+        countAlive(Succs[Node], CachedAlive, Node);
+    refreshProduct(Node);
+  }
+
+  void refreshProduct(std::size_t Node) {
+    CachedStats[Node].AlivePredSuccProduct =
+        safeMul(CachedStats[Node].AlivePredCount,
+                CachedStats[Node].AliveSuccCount);
+  }
+
+  void refreshNeighborhoodIfDirty(std::size_t Node) {
+    if (Node >= NeighborhoodDirty.size() || !NeighborhoodDirty[Node]) {
+      return;
+    }
+    CachedStats[Node].DecayedNeighborhoodPredSucc =
+        computeDecayedNeighborhoodPredSucc(Node, CachedAlive);
+    NeighborhoodDirty[Node] = false;
+  }
+
+  void markNeighborhoodDirty(std::size_t Node,
+                             std::vector<std::size_t> &Dirty) {
+    std::vector<std::size_t> LocalDirty;
+    collectNeighborhood(Node, Config.NeighborhoodDepth, LocalDirty);
+    for (const auto Candidate : LocalDirty) {
+      if (Candidate < NeighborhoodDirty.size()) {
+        NeighborhoodDirty[Candidate] = true;
+      }
+      if (std::find(Dirty.begin(), Dirty.end(), Candidate) == Dirty.end()) {
+        Dirty.push_back(Candidate);
+      }
+    }
+  }
+
+  void collectNeighborhood(std::size_t Root, std::size_t Depth,
+                           std::vector<std::size_t> &Out) const {
+    if (Root >= Succs.size()) {
+      return;
+    }
+    std::unordered_set<std::size_t> Seen;
+    std::queue<std::pair<std::size_t, std::size_t>> Worklist;
+    Seen.insert(Root);
+    Worklist.push({Root, 0});
+
+    while (!Worklist.empty()) {
+      const auto Current = Worklist.front();
+      Worklist.pop();
+      Out.push_back(Current.first);
+      if (Current.second >= Depth) {
+        continue;
+      }
+      auto Visit = [&](std::size_t Next) {
+        if (Next < Succs.size() && Seen.insert(Next).second) {
+          Worklist.push({Next, Current.second + 1});
+        }
+      };
+      for (const auto Pred : Preds[Current.first]) {
+        Visit(Pred);
+      }
+      for (const auto Succ : Succs[Current.first]) {
+        Visit(Succ);
+      }
+    }
   }
 
   double computeDecayedNeighborhoodPredSucc(
@@ -163,6 +346,9 @@ private:
   adjacency_t Preds;
   adjacency_t Succs;
   DynamicStructuralConfig Config;
+  std::vector<bool> CachedAlive;
+  std::vector<DynamicStructuralNodeStats> CachedStats;
+  std::vector<bool> NeighborhoodDirty;
 };
 
 } // namespace elimination
