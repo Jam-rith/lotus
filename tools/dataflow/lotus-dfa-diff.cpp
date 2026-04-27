@@ -52,6 +52,10 @@ static cl::opt<std::string> ElimMethodOpt(
     "elim-method",
     cl::desc("Elimination solver method: state|adt-simple|adt-delayed"),
     cl::init("state"));
+static cl::opt<std::string> ElimOrderOpt(
+    "elim-order",
+    cl::desc("State-elimination order: original|min-pred-succ"),
+    cl::init("original"));
 static cl::opt<std::string>
     EngineOpt("engine",
               cl::desc("Engine(s): elim, mono, ifds, all (default: all)"),
@@ -443,7 +447,8 @@ int main(int argc, char **argv) {
 
   OutputManager OutMgr;
   const auto ElimOpts =
-      lotus::dataflow_tool::parseEliminationOptions(ElimMethodOpt);
+      lotus::dataflow_tool::parseEliminationOptions(ElimMethodOpt,
+                                                    ElimOrderOpt);
   const bool RunElim = EngineOpt == "elim" || EngineOpt == "all";
   const bool RunMono = EngineOpt == "mono" || EngineOpt == "all";
   const bool RunIFDS = EngineOpt == "ifds" || EngineOpt == "all";

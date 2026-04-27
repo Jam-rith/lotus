@@ -2,6 +2,7 @@
 #define DATAFLOW_ELIMINATION_CORE_OPTIONS_H_
 
 #include <cstddef>
+#include <string>
 
 namespace elimination {
 
@@ -24,6 +25,8 @@ enum class EliminationOrderHeuristic {
   ExpressionAware,
   // Further penalize nodes whose self-loop closure is likely to be expensive.
   StarRisk,
+  // Predict elimination cost from an offline-trained order model.
+  LearnedCost,
 };
 
 enum class OnNonConvergentStar {
@@ -52,6 +55,10 @@ struct SolveDiagnostics final {
   bool used_adt = false;
   EliminationMethod requested_method = EliminationMethod::StateElimination;
   EliminationMethod executed_method = EliminationMethod::StateElimination;
+  EliminationOrderHeuristic requested_order =
+      EliminationOrderHeuristic::Original;
+  EliminationOrderHeuristic executed_order =
+      EliminationOrderHeuristic::Original;
   FallbackReason fallback_reason = FallbackReason::None;
   std::size_t star_iterations_total = 0;
   bool max_star_hit = false;
@@ -69,6 +76,16 @@ struct EliminationOptions final {
   // Reserved for future conditional collection. Diagnostics are currently
   // recorded unconditionally by the solver and attached to result metadata.
   bool RecordDiagnostics = true;
+  // Optional training-data trace for state-elimination ordering. When set, the
+  // solver appends candidate features and chosen-node proxy labels as TSV rows.
+  bool RecordOrderTrace = false;
+  std::string OrderTracePath;
+  // Frontends can use this to attach a function/benchmark identifier to rows.
+  std::string OrderTraceTag;
+  // Optional linear JSON model produced by scripts/apa_train_order_model.py.
+  // It is used only when OrderHeuristic is LearnedCost. Neural/MLP models are
+  // intentionally reserved for one-shot static importance scoring.
+  std::string OrderModelPath;
 };
 
 } // namespace elimination

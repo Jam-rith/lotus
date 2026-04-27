@@ -63,7 +63,8 @@ selectOutputStream(bool WriteToStdout, llvm::StringRef OutDir,
 }
 
 ::elimination::EliminationOptions
-parseEliminationOptions(llvm::StringRef MethodName) {
+parseEliminationOptions(llvm::StringRef MethodName,
+                        llvm::StringRef OrderName) {
   ::elimination::EliminationOptions Opts;
   if (MethodName == "adt-simple")
     Opts.Method = ::elimination::EliminationMethod::ADTSimple;
@@ -71,6 +72,19 @@ parseEliminationOptions(llvm::StringRef MethodName) {
     Opts.Method = ::elimination::EliminationMethod::ADTDelayed;
   else
     Opts.Method = ::elimination::EliminationMethod::StateElimination;
+
+  if (OrderName == "min-pred-succ" || OrderName == "structural")
+    Opts.OrderHeuristic = ::elimination::EliminationOrderHeuristic::MinPredSucc;
+  else if (OrderName == "expression-aware")
+    Opts.OrderHeuristic =
+        ::elimination::EliminationOrderHeuristic::ExpressionAware;
+  else if (OrderName == "star-risk")
+    Opts.OrderHeuristic = ::elimination::EliminationOrderHeuristic::StarRisk;
+  else if (OrderName == "learned-cost" || OrderName == "learned")
+    Opts.OrderHeuristic =
+        ::elimination::EliminationOrderHeuristic::LearnedCost;
+  else
+    Opts.OrderHeuristic = ::elimination::EliminationOrderHeuristic::Original;
   return Opts;
 }
 

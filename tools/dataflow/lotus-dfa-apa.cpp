@@ -25,10 +25,12 @@
 
 #include <algorithm>
 #include <chrono>
+#include <fstream>
 #include <memory>
 #include <set>
 #include <sstream>
 #include <string>
+#include <sys/resource.h>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -58,6 +60,23 @@ static cl::opt<std::string> ElimMethodOpt(
     "elim-method",
     cl::desc("Elimination solver method: state|adt-simple|adt-delayed"),
     cl::init("state"));
+static cl::opt<std::string> ElimOrderOpt(
+    "elim-order",
+    cl::desc("State-elimination order: original|min-pred-succ|"
+             "expression-aware|star-risk|learned-cost"),
+    cl::init("original"));
+static cl::opt<std::string> OrderModelOpt(
+    "order-model",
+    cl::desc("Linear JSON model for --elim-order=learned-cost"),
+    cl::init(""));
+static cl::opt<std::string> OrderTraceOutOpt(
+    "order-trace-out",
+    cl::desc("Append state-elimination ordering training rows to this TSV"),
+    cl::init(""));
+static cl::opt<std::string> OrderRunSummaryOutOpt(
+    "order-run-summary-out",
+    cl::desc("Append per-function real runtime/memory summary rows to this TSV"),
+    cl::init(""));
 static cl::opt<bool>
     DumpProfileOpt("dump-profile",
                    cl::desc("Dump solver and path-expression profiling data"),
@@ -144,6 +163,43 @@ const char *toString(elimination::FallbackReason R) {
   return "unknown";
 }
 
+const char *toString(elimination::EliminationOrderHeuristic H) {
+  switch (H) {
+  case elimination::EliminationOrderHeuristic::Original:
+    return "original";
+  case elimination::EliminationOrderHeuristic::MinPredSucc:
+    return "min-pred-succ";
+  case elimination::EliminationOrderHeuristic::ExpressionAware:
+    return "expression-aware";
+  case elimination::EliminationOrderHeuristic::StarRisk:
+    return "star-risk";
+  case elimination::EliminationOrderHeuristic::LearnedCost:
+    return "learned-cost";
+  }
+  return "unknown";
+}
+
+std::string sanitizeTSVField(std::string Value) {
+  for (auto &C : Value) {
+    if (C == '\t' || C == '\n' || C == '\r')
+      C = '_';
+  }
+  return Value;
+}
+
+bool shouldWriteTSVHeader(const std::string &Path) {
+  std::ifstream In(Path);
+  return !In.good() || In.peek() == std::ifstream::traits_type::eof();
+}
+
+long readPeakRSSKb() {
+  struct rusage Usage;
+  if (getrusage(RUSAGE_SELF, &Usage) != 0)
+    return 0;
+  // On Linux ru_maxrss is reported in kilobytes.
+  return Usage.ru_maxrss;
+}
+
 std::string formatExpressionKey(const elimination::ExpressionKey &Key) {
   std::ostringstream ss;
   ss << "op" << Key.Opcode << "(";
@@ -226,6 +282,18 @@ struct ExprProfile final {
   size_t StarNodes = 0;
 };
 
+struct ResultExprProfile final {
+  size_t NodesWithExpr = 0;
+  size_t MissingExpr = 0;
+  size_t TotalUniqueNodes = 0;
+  size_t TotalSharedRefs = 0;
+  size_t TotalStars = 0;
+  size_t TotalUnions = 0;
+  size_t TotalConcats = 0;
+  size_t MaxExprNodes = 0;
+  size_t MaxExprDepth = 0;
+};
+
 void collectExprProfileImpl(const InstructionExprRef &Expr, size_t Depth,
                             std::unordered_set<const void *> &Visited,
                             ExprProfile &Profile) {
@@ -271,6 +339,29 @@ ExprProfile collectExprProfile(const InstructionExprRef &Expr) {
   std::unordered_set<const void *> Visited;
   collectExprProfileImpl(Expr, 1, Visited, Profile);
   return Profile;
+}
+
+template <typename ResultT>
+ResultExprProfile collectResultExprProfile(const FunctionView &View,
+                                           const ResultT &Result) {
+  ResultExprProfile Summary;
+  for (auto *I : View.OrderedInsts) {
+    const auto Expr = Result.ExprTo(I);
+    if (!Expr) {
+      ++Summary.MissingExpr;
+      continue;
+    }
+    ++Summary.NodesWithExpr;
+    const auto Profile = collectExprProfile(Expr);
+    Summary.TotalUniqueNodes += Profile.UniqueNodes;
+    Summary.TotalSharedRefs += Profile.SharedRefs;
+    Summary.TotalStars += Profile.StarNodes;
+    Summary.TotalUnions += Profile.UnionNodes;
+    Summary.TotalConcats += Profile.ConcatNodes;
+    Summary.MaxExprNodes = std::max(Summary.MaxExprNodes, Profile.UniqueNodes);
+    Summary.MaxExprDepth = std::max(Summary.MaxExprDepth, Profile.MaxDepth);
+  }
+  return Summary;
 }
 
 std::string formatTransfer(const Instruction *I, const ValueIdMap &ValueToId) {
@@ -329,6 +420,8 @@ void printSolveMetadata(raw_ostream &OS, const ResultT &Result) {
   OS << "  [solver] status=" << toString(Result.solveStatus())
      << ", requested=" << toString(Diag.requested_method)
      << ", executed=" << toString(Diag.executed_method)
+     << ", requested_order=" << toString(Diag.requested_order)
+     << ", executed_order=" << toString(Diag.executed_order)
      << ", used_adt=" << (Diag.used_adt ? "true" : "false")
      << ", fallback=" << toString(Diag.fallback_reason)
      << ", star_iters=" << Diag.star_iterations_total
@@ -421,6 +514,87 @@ void dumpProfile(raw_ostream &OS, const FunctionView &View,
   }
 }
 
+template <typename ResultT>
+void appendRunSummaryRow(const FunctionView &View, const ResultT &Result,
+                         const elimination::EliminationOptions &ElimOpts,
+                         std::chrono::microseconds Elapsed) {
+  if (OrderRunSummaryOutOpt.empty())
+    return;
+
+  const bool NeedHeader = shouldWriteTSVHeader(OrderRunSummaryOutOpt);
+  std::ofstream Out(OrderRunSummaryOutOpt, std::ios::app);
+  if (!Out)
+    return;
+
+  if (NeedHeader) {
+    Out << "trace_tag"
+        << '\t' << "input"
+        << '\t' << "function"
+        << '\t' << "analysis"
+        << '\t' << "requested_method"
+        << '\t' << "executed_method"
+        << '\t' << "requested_order"
+        << '\t' << "executed_order"
+        << '\t' << "status"
+        << '\t' << "fallback"
+        << '\t' << "used_adt"
+        << '\t' << "elapsed_us"
+        << '\t' << "peak_rss_kb"
+        << '\t' << "cfg_blocks"
+        << '\t' << "cfg_insts"
+        << '\t' << "cfg_edges"
+        << '\t' << "expr_total_unique_nodes"
+        << '\t' << "expr_total_shared_refs"
+        << '\t' << "expr_total_union_count"
+        << '\t' << "expr_total_concat_count"
+        << '\t' << "expr_total_star_count"
+        << '\t' << "expr_max_nodes"
+        << '\t' << "expr_max_depth"
+        << '\t' << "star_iterations_total"
+        << '\t' << "max_star_hit"
+        << '\n';
+  }
+
+  const auto CFG = collectCFGStats(View.Function);
+  const auto Expr = collectResultExprProfile(View, Result);
+  const auto &Diag = Result.hasSolveMetadata() ? Result.solveDiagnostics()
+                                               : elimination::SolveDiagnostics();
+  const auto Status = Result.hasSolveMetadata() ? Result.solveStatus()
+                                                : elimination::SolveStatus::Ok;
+  const std::string TraceTag =
+      ElimOpts.OrderTraceTag.empty()
+          ? (InputFilename + ":" + AnalysisOpt + ":" +
+             View.Function.getName().str())
+          : ElimOpts.OrderTraceTag;
+
+  Out << sanitizeTSVField(TraceTag)
+      << '\t' << sanitizeTSVField(InputFilename)
+      << '\t' << sanitizeTSVField(View.Function.getName().str())
+      << '\t' << sanitizeTSVField(AnalysisOpt)
+      << '\t' << toString(Diag.requested_method)
+      << '\t' << toString(Diag.executed_method)
+      << '\t' << toString(Diag.requested_order)
+      << '\t' << toString(Diag.executed_order)
+      << '\t' << toString(Status)
+      << '\t' << toString(Diag.fallback_reason)
+      << '\t' << (Diag.used_adt ? 1 : 0)
+      << '\t' << Elapsed.count()
+      << '\t' << readPeakRSSKb()
+      << '\t' << CFG.Blocks
+      << '\t' << CFG.Instructions
+      << '\t' << CFG.Edges
+      << '\t' << Expr.TotalUniqueNodes
+      << '\t' << Expr.TotalSharedRefs
+      << '\t' << Expr.TotalUnions
+      << '\t' << Expr.TotalConcats
+      << '\t' << Expr.TotalStars
+      << '\t' << Expr.MaxExprNodes
+      << '\t' << Expr.MaxExprDepth
+      << '\t' << Diag.star_iterations_total
+      << '\t' << (Diag.max_star_hit ? 1 : 0)
+      << '\n';
+}
+
 template <typename ResultT, typename Printer>
 void dumpTimedResult(raw_ostream &OS, const FunctionView &View, ResultT &Result,
                      std::chrono::microseconds Elapsed, Printer &&PrintState) {
@@ -434,10 +608,21 @@ template <typename Runner, typename Printer>
 void runTimedAnalysis(raw_ostream &OS, const FunctionView &View,
                       const elimination::EliminationOptions &ElimOpts,
                       Runner &&Run, Printer &&PrintState) {
+  auto LocalOpts = ElimOpts;
+  if (LocalOpts.RecordOrderTrace || !OrderRunSummaryOutOpt.empty()) {
+    const std::string BaseTag =
+        LocalOpts.OrderTraceTag.empty()
+            ? (InputFilename + ":" + AnalysisOpt)
+            : LocalOpts.OrderTraceTag;
+    LocalOpts.OrderTraceTag =
+        sanitizeTSVField(BaseTag + ":" + View.Function.getName().str());
+  }
+
   const auto Start = std::chrono::steady_clock::now();
-  auto Result = Run(View.Function, ElimOpts);
+  auto Result = Run(View.Function, LocalOpts);
   const auto Elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
       std::chrono::steady_clock::now() - Start);
+  appendRunSummaryRow(View, Result, LocalOpts, Elapsed);
   dumpTimedResult(OS, View, Result, Elapsed, std::forward<Printer>(PrintState));
 }
 
@@ -700,8 +885,16 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  const auto ElimOpts =
-      lotus::dataflow_tool::parseEliminationOptions(ElimMethodOpt);
+  auto ElimOpts =
+      lotus::dataflow_tool::parseEliminationOptions(ElimMethodOpt,
+                                                    ElimOrderOpt);
+  if (!OrderTraceOutOpt.empty()) {
+    ElimOpts.RecordOrderTrace = true;
+    ElimOpts.OrderTracePath = OrderTraceOutOpt;
+    ElimOpts.OrderTraceTag = sanitizeTSVField(InputFilename + ":" + AnalysisOpt);
+  }
+  if (!OrderModelOpt.empty())
+    ElimOpts.OrderModelPath = OrderModelOpt;
   OS << "[elim:" << AnalysisOpt << "]\n";
 
   if (Handler->ModuleScoped) {

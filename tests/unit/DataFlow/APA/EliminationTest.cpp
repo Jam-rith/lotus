@@ -12,6 +12,8 @@
 #include "Dataflow/APA/Analyses/LLVM/Intra/ConstantPropagation.h"
 #include "Dataflow/APA/Analyses/LLVM/Intra/LiveVariables.h"
 #include "Dataflow/APA/Analyses/LLVM/Intra/Reachability.h"
+#include "Dataflow/APA/Importance/Dynamic/LinearOrderingModel.h"
+#include "Dataflow/APA/Importance/Static/NeuralImportanceModel.h"
 #include "TestUtils/LLVMHelpers.h"
 
 #include <set>
@@ -24,6 +26,9 @@
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
+#include <llvm/ADT/SmallString.h>
+#include <llvm/Support/FileSystem.h>
+#include <llvm/Support/raw_ostream.h>
 #include <gtest/gtest.h>
 
 namespace {
@@ -150,6 +155,148 @@ TEST(EliminationTest, BranchJoinUnion) {
   const auto &Res = Solver.getResults();
 
   EXPECT_EQ(factAt(Res, 3), (std::set<int>{1, 2, 3}));
+}
+
+TEST(EliminationTest, MinPredSuccOrderMatchesOriginalResults) {
+  // 0 -> 1 -> 3 -> 4
+  //  \-> 2 -/    |
+  //       ^______|
+  std::unordered_map<int, std::vector<int>> Succs = {
+      {0, {1, 2}}, {1, {3}}, {2, {3}}, {3, {2, 4}}, {4, {}}};
+  ReachabilityProblem Problem(0, Succs);
+
+  elimination::EliminationOptions OriginalOpts;
+  OriginalOpts.OrderHeuristic = elimination::EliminationOrderHeuristic::Original;
+  elimination::EliminationOptions StructuralOpts;
+  StructuralOpts.OrderHeuristic =
+      elimination::EliminationOrderHeuristic::MinPredSucc;
+
+  elimination::IntraEliminationSolver<TestDomain> OriginalSolver(Problem,
+                                                                  OriginalOpts);
+  elimination::IntraEliminationSolver<TestDomain> StructuralSolver(
+      Problem, StructuralOpts);
+
+  EXPECT_EQ(OriginalSolver.solve(), elimination::SolveStatus::Ok);
+  EXPECT_EQ(StructuralSolver.solve(), elimination::SolveStatus::Ok);
+  EXPECT_EQ(StructuralSolver.getDiagnostics().requested_order,
+            elimination::EliminationOrderHeuristic::MinPredSucc);
+  EXPECT_EQ(StructuralSolver.getDiagnostics().executed_order,
+            elimination::EliminationOrderHeuristic::MinPredSucc);
+
+  const auto &OriginalRes = OriginalSolver.getResults();
+  const auto &StructuralRes = StructuralSolver.getResults();
+  for (const auto Node : Problem.nodes()) {
+    EXPECT_EQ(factAt(OriginalRes, Node), factAt(StructuralRes, Node));
+  }
+}
+
+TEST(EliminationTest, LinearOrderingModelRejectsMLP) {
+  llvm::SmallString<128> ModelPath;
+  int FD = -1;
+  ASSERT_FALSE(
+      llvm::sys::fs::createTemporaryFile("apa-order-mlp", "json", FD,
+                                         ModelPath));
+  {
+    llvm::raw_fd_ostream OS(FD, true);
+    OS << R"json({
+      "model_type": "standardized_mlp_regressor",
+      "features": ["alive_pred_count"],
+      "feature_mean": {"alive_pred_count": 0.0},
+      "feature_std": {"alive_pred_count": 1.0},
+      "layers": [
+        {
+          "input_dim": 1,
+          "output_dim": 1,
+          "weights": [1.0],
+          "bias": [0.0]
+        }
+      ]
+    })json";
+  }
+
+  elimination::LinearOrderingModel Model;
+  EXPECT_FALSE(Model.loadFromFile(ModelPath.str().str()));
+
+  llvm::sys::fs::remove(ModelPath);
+}
+
+TEST(EliminationTest, LinearOrderingModelLoadsLinearModel) {
+  llvm::SmallString<128> ModelPath;
+  int FD = -1;
+  ASSERT_FALSE(
+      llvm::sys::fs::createTemporaryFile("apa-order-linear", "json", FD,
+                                         ModelPath));
+  {
+    llvm::raw_fd_ostream OS(FD, true);
+    OS << R"json({
+      "model_type": "standardized_ridge_linear_regression",
+      "features": ["alive_pred_count", "alive_succ_count"],
+      "feature_mean": {
+        "alive_pred_count": 1.0,
+        "alive_succ_count": 2.0
+      },
+      "feature_std": {
+        "alive_pred_count": 2.0,
+        "alive_succ_count": 2.0
+      },
+      "intercept": 0.5,
+      "weights": {
+        "alive_pred_count": 2.0,
+        "alive_succ_count": 3.0
+      }
+    })json";
+  }
+
+  elimination::LinearOrderingModel Model;
+  ASSERT_TRUE(Model.loadFromFile(ModelPath.str().str()));
+
+  elimination::OrderingFeatureVector Features;
+  Features.AlivePredCount = 3.0;
+  Features.AliveSuccCount = 4.0;
+  EXPECT_NEAR(Model.predict(Features), 5.5, 1e-9);
+
+  llvm::sys::fs::remove(ModelPath);
+}
+
+TEST(EliminationTest, NeuralImportanceModelLoadsMLP) {
+  llvm::SmallString<128> ModelPath;
+  int FD = -1;
+  ASSERT_FALSE(
+      llvm::sys::fs::createTemporaryFile("apa-order-mlp", "json", FD,
+                                         ModelPath));
+  {
+    llvm::raw_fd_ostream OS(FD, true);
+    OS << R"json({
+      "model_type": "standardized_mlp_regressor",
+      "features": ["alive_pred_count", "alive_succ_count"],
+      "feature_mean": {
+        "alive_pred_count": 1.0,
+        "alive_succ_count": 2.0
+      },
+      "feature_std": {
+        "alive_pred_count": 2.0,
+        "alive_succ_count": 2.0
+      },
+      "layers": [
+        {
+          "input_dim": 2,
+          "output_dim": 1,
+          "weights": [2.0, 3.0],
+          "bias": [0.5]
+        }
+      ]
+    })json";
+  }
+
+  elimination::NeuralImportanceModel Model;
+  ASSERT_TRUE(Model.loadFromFile(ModelPath.str().str()));
+
+  elimination::OrderingFeatureVector Features;
+  Features.AlivePredCount = 3.0;
+  Features.AliveSuccCount = 4.0;
+  EXPECT_NEAR(Model.predict(Features), 5.5, 1e-9);
+
+  llvm::sys::fs::remove(ModelPath);
 }
 
 TEST(EliminationTest, EmptyGraph) {

@@ -356,6 +356,8 @@ VeryBusyExpressionsResult runIntraElimVeryBusyExpressions(
   SolveDiagnostics OverallDiag;
   OverallDiag.requested_method = Opts.Method;
   OverallDiag.executed_method = Opts.Method;
+  OverallDiag.requested_order = Opts.OrderHeuristic;
+  OverallDiag.executed_order = Opts.OrderHeuristic;
   bool Initialized = false;
 
   // Multi-exit handling: solve one reverse problem rooted at each return and

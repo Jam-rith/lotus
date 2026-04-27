@@ -147,6 +147,9 @@ The synthesized reducible view accepts ADT only when all nodes are entry-reachab
 immediate dominators are computable, and the non-back-edge subgraph is acyclic
 with entry first in topological order.
 
+For learned elimination ordering, see
+[`ORDERING_TRAINING.md`](ORDERING_TRAINING.md).
+
 
 ## Intraprocedural LLVM analyses
 

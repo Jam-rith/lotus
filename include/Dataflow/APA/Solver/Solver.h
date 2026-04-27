@@ -39,6 +39,8 @@ public:
     Ctx.Diagnostics = {};
     Ctx.Diagnostics.requested_method = Opts.Method;
     Ctx.Diagnostics.executed_method = EliminationMethod::StateElimination;
+    Ctx.Diagnostics.requested_order = Opts.OrderHeuristic;
+    Ctx.Diagnostics.executed_order = Opts.OrderHeuristic;
 
     if (Opts.Method == EliminationMethod::ADTSimple) {
       if (detail::solveADTSimple(Ctx)) {

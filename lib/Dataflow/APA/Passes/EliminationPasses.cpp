@@ -23,8 +23,13 @@ cl::opt<std::string> ElimMethodOpt(
 cl::opt<std::string> ElimOrderOpt(
     "elim-order",
     cl::desc(
-        "State-elimination order: original|min-pred-succ|expression-aware|star-risk"),
+        "State-elimination order: original|min-pred-succ|structural|expression-aware|star-risk|learned-cost"),
     cl::init("original"));
+
+cl::opt<std::string> ElimOrderModelOpt(
+    "elim-order-model",
+    cl::desc("JSON model for -elim-order=learned-cost"),
+    cl::init(""));
 
 cl::opt<bool> ElimReachPrint("elim-reachable-print",
                              cl::desc("Print elimination reachability facts"),
@@ -85,15 +90,18 @@ EliminationOptions getElimOptions() {
   } else {
     Opts.Method = EliminationMethod::StateElimination;
   }
-  if (ElimOrderOpt == "min-pred-succ") {
+  if (ElimOrderOpt == "min-pred-succ" || ElimOrderOpt == "structural") {
     Opts.OrderHeuristic = EliminationOrderHeuristic::MinPredSucc;
   } else if (ElimOrderOpt == "expression-aware") {
     Opts.OrderHeuristic = EliminationOrderHeuristic::ExpressionAware;
   } else if (ElimOrderOpt == "star-risk") {
     Opts.OrderHeuristic = EliminationOrderHeuristic::StarRisk;
+  } else if (ElimOrderOpt == "learned-cost" || ElimOrderOpt == "learned") {
+    Opts.OrderHeuristic = EliminationOrderHeuristic::LearnedCost;
   } else {
     Opts.OrderHeuristic = EliminationOrderHeuristic::Original;
   }
+  Opts.OrderModelPath = ElimOrderModelOpt;
   return Opts;
 }
 

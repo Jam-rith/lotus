@@ -99,6 +99,8 @@ LiveVariablesResult runIntraElimLiveVariables(llvm::Function *F,
   SolveDiagnostics OverallDiag;
   OverallDiag.requested_method = Opts.Method;
   OverallDiag.executed_method = Opts.Method;
+  OverallDiag.requested_order = Opts.OrderHeuristic;
+  OverallDiag.executed_order = Opts.OrderHeuristic;
 
   // Multi-exit handling: solve one reverse problem rooted at each return and
   // merge with set-union (may semantics: live on any feasible return path).

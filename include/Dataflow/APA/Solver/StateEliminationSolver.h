@@ -1,9 +1,14 @@
 #ifndef DATAFLOW_APA_ENGINES_STATEELIMINATIONSOLVER_H_
 #define DATAFLOW_APA_ENGINES_STATEELIMINATIONSOLVER_H_
 
+#include "Dataflow/APA/Importance/Dynamic/IncrementalOrderingHeap.h"
+#include "Dataflow/APA/Importance/Dynamic/LinearOrderingModel.h"
+#include "Dataflow/APA/Importance/Dynamic/StateElimination/OrderTrace.h"
 #include "Dataflow/APA/Solver/SolverContext.h"
 
 #include <algorithm>
+#include <chrono>
+#include <cmath>
 #include <limits>
 #include <queue>
 #include <unordered_set>
@@ -147,6 +152,27 @@ std::size_t structuralOrderScore(
 }
 
 template <typename AnalysisDomainTy>
+std::size_t simpleStructuralOrderScore(
+    const IntraEliminationSolverContext<AnalysisDomainTy> &Ctx,
+    std::size_t Node, const std::vector<bool> &Alive) {
+  using Context = IntraEliminationSolverContext<AnalysisDomainTy>;
+  std::size_t AlivePredCount = 0;
+  std::size_t AliveSuccCount = 0;
+  for (std::size_t Other = 0; Other < Ctx.Nodes.size(); ++Other) {
+    if (!Alive[Other] || Other == Node) {
+      continue;
+    }
+    if (!Context::expr_factory_t::isZero(Ctx.Matrix[Other][Node])) {
+      ++AlivePredCount;
+    }
+    if (!Context::expr_factory_t::isZero(Ctx.Matrix[Node][Other])) {
+      ++AliveSuccCount;
+    }
+  }
+  return saturatingMul(AlivePredCount, AliveSuccCount);
+}
+
+template <typename AnalysisDomainTy>
 std::size_t expressionAwareOrderScore(
     const IntraEliminationSolverContext<AnalysisDomainTy> &Ctx,
     std::size_t Node, const std::vector<bool> &Alive,
@@ -217,6 +243,9 @@ std::size_t scoreStateEliminationNode(
   case EliminationOrderHeuristic::StarRisk:
     return starRiskOrderScore(Ctx, Node, Alive, PredCount, SuccCount,
                               ExprSizes);
+  case EliminationOrderHeuristic::LearnedCost:
+    return structuralOrderScore(Ctx, Node, Alive, PredCount, SuccCount,
+                                ExprSizes);
   case EliminationOrderHeuristic::Original:
     return structuralOrderScore(Ctx, Node, Alive, PredCount, SuccCount,
                                 ExprSizes);
@@ -267,7 +296,7 @@ template <typename AnalysisDomainTy>
 std::vector<std::size_t> getDynamicStateEliminationOrder(
     IntraEliminationSolverContext<AnalysisDomainTy> &Ctx) {
   using Context = IntraEliminationSolverContext<AnalysisDomainTy>;
-  using HeapEntry = std::pair<std::size_t, std::size_t>;
+  using HeapEntry = std::pair<double, std::size_t>;
 
   const auto N = Ctx.Nodes.size();
   std::vector<bool> Alive(N, true);
@@ -276,6 +305,10 @@ std::vector<std::size_t> getDynamicStateEliminationOrder(
   std::vector<std::size_t> ExprSizes(N, 0);
   std::priority_queue<HeapEntry, std::vector<HeapEntry>, std::greater<HeapEntry>>
       MinHeap;
+  LinearOrderingModel LinearModel;
+  const bool UseLinearModel =
+      Ctx.Opts.OrderHeuristic == EliminationOrderHeuristic::LearnedCost &&
+      LinearModel.loadFromFile(Ctx.Opts.OrderModelPath);
 
   auto recomputeNode = [&](std::size_t Node) {
     PredCount[Node] = 0;
@@ -295,53 +328,288 @@ std::vector<std::size_t> getDynamicStateEliminationOrder(
         exprSize<typename Context::expr_factory_t>(Ctx.Matrix[Node][Node]);
   };
 
-  auto nodeScore = [&](std::size_t Node) {
+  auto baseFeatureScore = [&](std::size_t Node) {
+    if (Ctx.Opts.OrderHeuristic == EliminationOrderHeuristic::MinPredSucc) {
+      return simpleStructuralOrderScore(Ctx, Node, Alive);
+    }
     return scoreStateEliminationNode(Ctx, Node, Alive, PredCount, SuccCount,
                                      ExprSizes);
+  };
+
+  auto buildOrderTraceRow = [&](std::size_t Step, std::size_t Node,
+                                const OrderTraceMatrixStats &MatrixStats) {
+    OrderTraceRow Row;
+    Row.TraceTag = Ctx.Opts.OrderTraceTag;
+    Row.Step = Step;
+    Row.NodeIndex = Node;
+    Row.Score = baseFeatureScore(Node);
+    Row.Candidate =
+        collectEliminationCandidateStats<typename Context::expr_factory_t>(
+            Ctx.Exprs, Ctx.Matrix, Alive, Node);
+    Row.MatrixBefore = MatrixStats;
+    return Row;
+  };
+
+  auto mergeStats = [](const PathExpressionStats &Lhs,
+                       const PathExpressionStats &Rhs) {
+    PathExpressionStats Out;
+    Out.UniqueNodeCount = saturatingAdd(Lhs.UniqueNodeCount, Rhs.UniqueNodeCount);
+    Out.SharedRefCount = saturatingAdd(Lhs.SharedRefCount, Rhs.SharedRefCount);
+    Out.MaxDepth = std::max(Lhs.MaxDepth, Rhs.MaxDepth);
+    Out.ZeroCount = saturatingAdd(Lhs.ZeroCount, Rhs.ZeroCount);
+    Out.OneCount = saturatingAdd(Lhs.OneCount, Rhs.OneCount);
+    Out.AtomCount = saturatingAdd(Lhs.AtomCount, Rhs.AtomCount);
+    Out.UnionCount = saturatingAdd(Lhs.UnionCount, Rhs.UnionCount);
+    Out.ConcatCount = saturatingAdd(Lhs.ConcatCount, Rhs.ConcatCount);
+    Out.StarCount = saturatingAdd(Lhs.StarCount, Rhs.StarCount);
+    Out.PlusCount = saturatingAdd(Lhs.PlusCount, Rhs.PlusCount);
+    return Out;
+  };
+
+  const OrderingFeatureNeeds EmptyFeatureNeeds;
+  auto buildLightweightOrderRow = [&](std::size_t Node,
+                                      const OrderingFeatureNeeds &Needs) {
+    OrderTraceRow Row;
+    Row.NodeIndex = Node;
+    Row.Score = baseFeatureScore(Node);
+    const bool NeedExprStats = Needs.needsAnyExpressionFeature();
+    const bool NeedFillInStats = Needs.needsFillInFeature();
+    if (NeedExprStats) {
+      Row.Candidate.SelfExprStats =
+          collectPathExpressionStats<typename Context::expr_factory_t>(
+              Ctx.Matrix[Node][Node]);
+    }
+    for (std::size_t Other = 0; Other < N; ++Other) {
+      if (!Alive[Other] || Other == Node) {
+        continue;
+      }
+      if (!Context::expr_factory_t::isZero(Ctx.Matrix[Other][Node])) {
+        ++Row.Candidate.AlivePredCount;
+        if (NeedExprStats) {
+          Row.Candidate.IncomingExprStats = mergeStats(
+              Row.Candidate.IncomingExprStats,
+              collectPathExpressionStats<typename Context::expr_factory_t>(
+                  Ctx.Matrix[Other][Node]));
+        }
+      }
+      if (!Context::expr_factory_t::isZero(Ctx.Matrix[Node][Other])) {
+        ++Row.Candidate.AliveSuccCount;
+        if (NeedExprStats) {
+          Row.Candidate.OutgoingExprStats = mergeStats(
+              Row.Candidate.OutgoingExprStats,
+              collectPathExpressionStats<typename Context::expr_factory_t>(
+                  Ctx.Matrix[Node][Other]));
+        }
+      }
+    }
+    Row.Candidate.CrossCombinationCount = saturatingMul(
+        Row.Candidate.AlivePredCount, Row.Candidate.AliveSuccCount);
+
+    if (!NeedFillInStats) {
+      return Row;
+    }
+    for (std::size_t Pred = 0; Pred < N; ++Pred) {
+      if (!Alive[Pred] || Pred == Node ||
+          Context::expr_factory_t::isZero(Ctx.Matrix[Pred][Node])) {
+        continue;
+      }
+      for (std::size_t Succ = 0; Succ < N; ++Succ) {
+        if (!Alive[Succ] || Succ == Node ||
+            Context::expr_factory_t::isZero(Ctx.Matrix[Node][Succ])) {
+          continue;
+        }
+        if (Context::expr_factory_t::isZero(Ctx.Matrix[Pred][Succ])) {
+          ++Row.Candidate.FillInCount;
+        } else {
+          ++Row.Candidate.ExistingTargetCount;
+        }
+        if (Ctx.Matrix[Pred][Node] == Ctx.Matrix[Node][Succ] ||
+            Ctx.Matrix[Pred][Node] == Ctx.Matrix[Node][Node] ||
+            Ctx.Matrix[Node][Succ] == Ctx.Matrix[Node][Node]) {
+          ++Row.Candidate.SharedInputRefCount;
+        }
+      }
+    }
+    return Row;
+  };
+
+  auto nodeScore = [&](std::size_t Node) {
+    return static_cast<double>(baseFeatureScore(Node));
+  };
+
+  OrderTraceMatrixStats LinearMatrixStatsCache;
+  bool LinearMatrixStatsDirty = true;
+  auto currentLinearMatrixStats = [&]() {
+    if (!LinearModel.featureNeeds().needsAnyMatrixFeature()) {
+      return OrderTraceMatrixStats();
+    }
+    if (LinearMatrixStatsDirty) {
+      LinearMatrixStatsCache =
+          collectOrderTraceMatrixStats<typename Context::expr_factory_t>(
+              Ctx.Matrix);
+      LinearMatrixStatsDirty = false;
+    }
+    return LinearMatrixStatsCache;
+  };
+
+  auto linearNodeScore = [&](std::size_t Node) {
+    auto Row = buildLightweightOrderRow(Node, LinearModel.featureNeeds());
+    Row.MatrixBefore = currentLinearMatrixStats();
+    return LinearModel.predict(toOrderingFeatureVector(Row));
   };
 
   auto pushNode = [&](std::size_t Node) {
     MinHeap.emplace(nodeScore(Node), Node);
   };
 
+  IncrementalOrderingHeap LearnedHeap(
+      N, [&](std::size_t Node) { return linearNodeScore(Node); },
+      [&](std::size_t Node) { return Node < Alive.size() && Alive[Node]; });
+
+  auto collectTraceRowsBeforeChoice = [&](std::size_t Step) {
+    std::vector<OrderTraceRow> Rows;
+    if (!Ctx.Opts.RecordOrderTrace || Ctx.Opts.OrderTracePath.empty()) {
+      return Rows;
+    }
+
+    const auto MatrixStats =
+        collectOrderTraceMatrixStats<typename Context::expr_factory_t>(
+            Ctx.Matrix);
+    Rows.reserve(N);
+    for (std::size_t Node = 0; Node < N; ++Node) {
+      if (!Alive[Node]) {
+        continue;
+      }
+      OrderTraceRow Row;
+      Row = buildOrderTraceRow(Step, Node, MatrixStats);
+      Rows.push_back(std::move(Row));
+    }
+    return Rows;
+  };
+
+  auto attachChosenTraceLabels =
+      [&](std::vector<OrderTraceRow> &Rows, std::size_t ChosenNode,
+          const OrderTraceMatrixStats &Before,
+          const OrderTraceMatrixStats &After,
+          std::size_t AffectedNodeCount, long long ElapsedUs) {
+        for (auto &Row : Rows) {
+          if (Row.NodeIndex != ChosenNode) {
+            continue;
+          }
+          Row.Chosen = true;
+          Row.AffectedNodes = AffectedNodeCount;
+          Row.ElapsedUsForChosen = ElapsedUs;
+          Row.DeltaTotalUniqueExprNodes =
+              static_cast<long long>(After.TotalUniqueExprNodes) -
+              static_cast<long long>(Before.TotalUniqueExprNodes);
+          Row.DeltaTotalConcatCount =
+              static_cast<long long>(After.TotalConcatCount) -
+              static_cast<long long>(Before.TotalConcatCount);
+          Row.DeltaTotalUnionCount =
+              static_cast<long long>(After.TotalUnionCount) -
+              static_cast<long long>(Before.TotalUnionCount);
+          Row.DeltaTotalStarCount =
+              static_cast<long long>(After.TotalStarCount) -
+              static_cast<long long>(Before.TotalStarCount);
+          return;
+        }
+      };
+
   for (std::size_t Node = 0; Node < N; ++Node) {
     recomputeNode(Node);
-    pushNode(Node);
+    if (!UseLinearModel) {
+      pushNode(Node);
+    }
+  }
+  if (UseLinearModel) {
+    LearnedHeap.initializeAll();
   }
 
   std::vector<std::size_t> Order;
   Order.reserve(N);
 
   for (std::size_t Step = 0; Step < N; ++Step) {
-    std::size_t K = 0;
-    while (true) {
-      const auto Entry = MinHeap.top();
-      MinHeap.pop();
-      K = Entry.second;
-      if (!Alive[K]) {
-        continue;
-      }
+    auto TraceRows = collectTraceRowsBeforeChoice(Step);
+    const auto MatrixStatsBefore =
+        (!TraceRows.empty())
+            ? TraceRows.front().MatrixBefore
+            : OrderTraceMatrixStats();
 
-      const auto CurrentScore = nodeScore(K);
-      if (Entry.first == CurrentScore) {
-        break;
+    std::size_t K = 0;
+    if (UseLinearModel) {
+      K = LearnedHeap.popMin();
+    } else {
+      while (true) {
+        const auto Entry = MinHeap.top();
+        MinHeap.pop();
+        K = Entry.second;
+        if (!Alive[K]) {
+          continue;
+        }
+
+        const auto CurrentScore = nodeScore(K);
+        if (std::abs(Entry.first - CurrentScore) < 1e-9) {
+          break;
+        }
+        MinHeap.emplace(CurrentScore, K);
       }
-      MinHeap.emplace(CurrentScore, K);
     }
 
     Order.push_back(K);
 
     std::unordered_set<std::size_t> Affected;
+    const auto EliminateStart = std::chrono::steady_clock::now();
     eliminateStateAt(Ctx, K, &Affected);
+    const auto EliminateElapsed =
+        std::chrono::duration_cast<std::chrono::microseconds>(
+            std::chrono::steady_clock::now() - EliminateStart)
+            .count();
+
+    if (!TraceRows.empty()) {
+      const auto MatrixStatsAfter =
+          collectOrderTraceMatrixStats<typename Context::expr_factory_t>(
+              Ctx.Matrix);
+      attachChosenTraceLabels(TraceRows, K, MatrixStatsBefore, MatrixStatsAfter,
+                              Affected.size(), EliminateElapsed);
+      appendOrderTraceRows(Ctx.Opts.OrderTracePath, TraceRows);
+    }
+    LinearMatrixStatsDirty = true;
 
     Alive[K] = false;
+    if (UseLinearModel) {
+      LearnedHeap.invalidate(K);
+    }
     Affected.erase(K);
+    std::vector<std::size_t> RefreshNodes;
+    RefreshNodes.reserve(Affected.size());
     for (const auto Node : Affected) {
       if (!Alive[Node]) {
         continue;
       }
       recomputeNode(Node);
-      pushNode(Node);
+      if (!UseLinearModel) {
+        pushNode(Node);
+      }
+      RefreshNodes.push_back(Node);
+    }
+    if (UseLinearModel) {
+      if (LinearModel.featureNeeds().needsAnyMatrixFeature()) {
+        for (std::size_t Node = 0; Node < N; ++Node) {
+          if (Alive[Node]) {
+            recomputeNode(Node);
+            LearnedHeap.refresh(Node);
+          }
+        }
+      } else {
+        LearnedHeap.refreshAll(RefreshNodes);
+      }
+    }
+    if (Ctx.Opts.OrderHeuristic == EliminationOrderHeuristic::MinPredSucc) {
+      for (std::size_t Node = 0; Node < N; ++Node) {
+        if (Alive[Node]) {
+          pushNode(Node);
+        }
+      }
     }
   }
 
@@ -354,7 +622,8 @@ void eliminateStateIntermediates(
   const auto N = Ctx.Nodes.size();
   if (Ctx.Opts.OrderHeuristic == EliminationOrderHeuristic::MinPredSucc ||
       Ctx.Opts.OrderHeuristic == EliminationOrderHeuristic::ExpressionAware ||
-      Ctx.Opts.OrderHeuristic == EliminationOrderHeuristic::StarRisk) {
+      Ctx.Opts.OrderHeuristic == EliminationOrderHeuristic::StarRisk ||
+      Ctx.Opts.OrderHeuristic == EliminationOrderHeuristic::LearnedCost) {
     getDynamicStateEliminationOrder(Ctx);
     return;
   }

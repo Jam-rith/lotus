@@ -54,7 +54,8 @@ selectOutputStream(bool WriteToStdout, llvm::StringRef OutDir,
                    llvm::raw_null_ostream &NullOS, std::error_code &EC);
 
 ::elimination::EliminationOptions
-parseEliminationOptions(llvm::StringRef MethodName);
+parseEliminationOptions(llvm::StringRef MethodName,
+                        llvm::StringRef OrderName = "original");
 
 void emitFunctionHeader(llvm::raw_ostream &OS, const llvm::Function &F);
 
