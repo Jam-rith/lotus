@@ -89,6 +89,21 @@ public:
   const SolveDiagnostics &getDiagnostics() const { return Ctx.Diagnostics; }
   bool usedADT() const { return UsedADT; }
 
+  // ADT profiles are populated only when an ADT engine is prepared/executed.
+  // They are intentionally separate from state-elimination dynamic/expression
+  // statistics because their keys are ADT composition nodes.
+  const typename Context::adt_profile_t &getADTStructureProfile() const {
+    return Ctx.adtStructureProfile();
+  }
+
+  const typename Context::adt_profile_t &getADTSimpleProfile() const {
+    return Ctx.adtSimpleProfile();
+  }
+
+  const typename Context::adt_profile_t &getADTDelayedProfile() const {
+    return Ctx.adtDelayedProfile();
+  }
+
 private:
   Context Ctx;
   EliminationOptions Opts;

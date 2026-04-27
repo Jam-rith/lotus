@@ -28,10 +28,12 @@ bool computeADTSimplePathExpr(
   }
   if (W->Leaf) {
     W->SimpleExpr = Ctx.Exprs.one();
-    if (Ctx.hasSelfLoop(R, W->FlowNode)) {
+    const bool HasSelfLoop = Ctx.hasSelfLoop(R, W->FlowNode);
+    if (HasSelfLoop) {
       W->SimpleExpr = Ctx.Exprs.star(
           Ctx.Exprs.atom(R.edgeTransfer(W->FlowNode, W->FlowNode)));
     }
+    Ctx.recordADTSimpleLeafBase(W, W->SimpleExpr, HasSelfLoop);
     return true;
   }
 
@@ -83,6 +85,7 @@ bool computeADTSimplePathExpr(
 
   const auto L = Ctx.Exprs.star(Ctx.Exprs.concat(X, Y));
   const auto RPref = Ctx.Exprs.concat(L, X);
+  Ctx.recordADTSimpleComposition(W, X, Y, L, L, RPref);
 
   // Eager propagation: update every leaf in the left/right interval with the
   // prefix induced by eliminating this composition node.
@@ -112,6 +115,7 @@ bool solveADTSimpleWith(IntraEliminationSolverContext<AnalysisDomainTy> &Ctx,
   if (!Ctx.prepareADT(R, Root, LeafOf, TopoPos, LeafByPos, Lca)) {
     return false;
   }
+  Ctx.beginADTSimpleStats(Root);
 
   // The simple engine materializes each leaf expression directly, so once the
   // ADT walk finishes there is no deferred reconstruction step.
@@ -127,9 +131,13 @@ bool solveADTSimpleWith(IntraEliminationSolverContext<AnalysisDomainTy> &Ctx,
       continue;
     }
     auto *Leaf = It->second;
+    Ctx.recordADTSimpleFinalLeaf(Leaf, Leaf->SimpleExpr);
     Ctx.Results.ExprTo(N) = Leaf->SimpleExpr;
-    Ctx.Results.IN(N) = Ctx.eval(Leaf->SimpleExpr, Init);
+    if (!Ctx.Opts.SkipFinalEval) {
+      Ctx.Results.IN(N) = Ctx.eval(Leaf->SimpleExpr, Init);
+    }
   }
+  Ctx.finishADTSimpleStats();
   return true;
 }
 

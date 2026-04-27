@@ -1,5 +1,5 @@
-#ifndef DATAFLOW_APA_IMPORTANCE_DYNAMIC_DYNAMICSTRUCTURALSTATE_H_
-#define DATAFLOW_APA_IMPORTANCE_DYNAMIC_DYNAMICSTRUCTURALSTATE_H_
+#ifndef DATAFLOW_APA_IMPORTANCE_DYNAMIC_STATEELIMINATION_DYNAMICSTRUCTURALSTATE_H_
+#define DATAFLOW_APA_IMPORTANCE_DYNAMIC_STATEELIMINATION_DYNAMICSTRUCTURALSTATE_H_
 
 #include <algorithm>
 #include <cstddef>
@@ -31,7 +31,7 @@ struct DynamicStructuralConfig final {
 
 // Maintains adjacency used for dynamic structural importance. This file is
 // about alive-node structural data only; expression-matrix growth belongs in
-// ExpressionExplosion/EliminationMatrixStats.h.
+// Dynamic/StateElimination/EliminationMatrixStats.h.
 class DynamicStructuralState final {
 public:
   using adjacency_t = std::vector<std::vector<std::size_t>>;
@@ -353,4 +353,4 @@ private:
 
 } // namespace elimination
 
-#endif // DATAFLOW_APA_IMPORTANCE_DYNAMIC_DYNAMICSTRUCTURALSTATE_H_
+#endif // DATAFLOW_APA_IMPORTANCE_DYNAMIC_STATEELIMINATION_DYNAMICSTRUCTURALSTATE_H_

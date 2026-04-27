@@ -1,32 +1,26 @@
 #ifndef DATAFLOW_APA_IMPORTANCE_IMPORTANCE_H_
 #define DATAFLOW_APA_IMPORTANCE_IMPORTANCE_H_
 
-// Importance-aware APA is organized into three data layers:
+// Importance-aware APA is organized around two kinds of facts:
 //
-//   Static/
-//     Immutable CFG, loop, boundary, and dominator facts.
+//   Static/, Sparse/, Demand/
+//     Mostly immutable or pre-solve profiles. They describe the original CFG,
+//     sparsification opportunity, and demand/query relevance.
 //
 //   Dynamic/
-//     Facts that change during elimination, such as alive predecessor/successor
-//     counts and decayed neighborhood structure.
+//     Runtime statistics collected while a solver is running:
+//       StateElimination/    generic solver alive-graph and matrix-growth stats
+//       ADT/                 ADTSimple tree/F-B/prefix-expression stats
+//       ADTDelayed/          ADTDelayed-specific aggregation entry point
 //
-//   ExpressionExplosion/
-//     Path-expression DAG and elimination-matrix statistics used to estimate
-//     expression growth, fill-in, reuse, and star risk.
-//
-//   Sparse/
-//     Compact compression-potential summaries for linear-chain sparsification.
-//
-//   Demand/
-//     Compact query-relevance summaries for demand-driven materialization.
-//
-// ImportanceModel and ImportancePolicy consume these layers but should not
-// collect raw facts themselves.
-#include "Dataflow/APA/Importance/Demand/DemandImportance.h"
-#include "Dataflow/APA/Importance/ExpressionExplosion/ExpressionExplosion.h"
-#include "Dataflow/APA/Importance/Dynamic/DynamicImportance.h"
+// ImportanceModel and ImportancePolicy remain at the root because they combine
+// these facts rather than owning one particular profile family.
 #include "Dataflow/APA/Importance/ImportanceModel.h"
 #include "Dataflow/APA/Importance/ImportancePolicy.h"
+#include "Dataflow/APA/Importance/Demand/DemandImportance.h"
+#include "Dataflow/APA/Importance/Dynamic/ADT/ADTImportance.h"
+#include "Dataflow/APA/Importance/Dynamic/ADTDelayed/ADTDelayedImportance.h"
+#include "Dataflow/APA/Importance/Dynamic/StateElimination/DynamicImportance.h"
 #include "Dataflow/APA/Importance/Sparse/SparseImportance.h"
 #include "Dataflow/APA/Importance/Static/StaticImportance.h"
 

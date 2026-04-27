@@ -25,10 +25,12 @@ bool computeADTDelayedPathExpr(
   }
   if (W->Leaf) {
     W->UFExpr = Ctx.Exprs.one();
-    if (!W->Parent && Ctx.hasSelfLoop(R, W->FlowNode)) {
+    const bool HasSelfLoop = Ctx.hasSelfLoop(R, W->FlowNode);
+    if (!W->Parent && HasSelfLoop) {
       W->UFExpr = Ctx.Exprs.star(
           Ctx.Exprs.atom(R.edgeTransfer(W->FlowNode, W->FlowNode)));
     }
+    Ctx.recordADTDelayedLeafBase(W, W->UFExpr, HasSelfLoop);
     return true;
   }
 
@@ -79,6 +81,8 @@ bool computeADTDelayedPathExpr(
 
   auto L = Ctx.Exprs.star(Ctx.Exprs.concat(X, Y));
   auto RPref = Ctx.Exprs.concat(L, X);
+  const auto LBeforeLeaf = L;
+  const auto RPrefBeforeLeaf = RPref;
 
   // Leaf self-loops must be folded into the prefix before linking because the
   // delayed representation stores only interval-entry to child-entry summaries.
@@ -96,6 +100,8 @@ bool computeADTDelayedPathExpr(
           RPref, Ctx.Exprs.star(Ctx.Exprs.atom(R.edgeTransfer(U, U))));
     }
   }
+  Ctx.recordADTDelayedComposition(W, X, Y, LBeforeLeaf, LBeforeLeaf,
+                                  RPrefBeforeLeaf, L, RPref);
 
   // Record the prefixes structurally. evalUF() later composes these links with
   // path compression when a concrete leaf result is requested.
@@ -119,6 +125,7 @@ bool solveADTDelayedWith(IntraEliminationSolverContext<AnalysisDomainTy> &Ctx,
   if (!Ctx.prepareADT(R, Root, LeafOf, TopoPos, LeafByPos, Lca)) {
     return false;
   }
+  Ctx.beginADTDelayedStats(Root);
 
   // The root starts as its own representative with the empty-prefix identity.
   Ctx.initUF(Root);
@@ -138,9 +145,13 @@ bool solveADTDelayedWith(IntraEliminationSolverContext<AnalysisDomainTy> &Ctx,
     }
     auto *Leaf = It->second;
     auto E = Ctx.evalUF(Leaf);
+    Ctx.recordADTDelayedFinalLeaf(Leaf, E);
     Ctx.Results.ExprTo(N) = E;
-    Ctx.Results.IN(N) = Ctx.eval(E, Init);
+    if (!Ctx.Opts.SkipFinalEval) {
+      Ctx.Results.IN(N) = Ctx.eval(E, Init);
+    }
   }
+  Ctx.finishADTDelayedStats();
   return true;
 }
 

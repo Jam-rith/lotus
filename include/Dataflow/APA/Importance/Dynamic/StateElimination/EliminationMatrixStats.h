@@ -1,7 +1,7 @@
-#ifndef DATAFLOW_APA_IMPORTANCE_ELIMINATIONMATRIXSTATS_H_
-#define DATAFLOW_APA_IMPORTANCE_ELIMINATIONMATRIXSTATS_H_
+#ifndef DATAFLOW_APA_IMPORTANCE_DYNAMIC_STATEELIMINATION_ELIMINATIONMATRIXSTATS_H_
+#define DATAFLOW_APA_IMPORTANCE_DYNAMIC_STATEELIMINATION_ELIMINATIONMATRIXSTATS_H_
 
-#include "Dataflow/APA/Importance/ExpressionExplosion/PathExpressionStats.h"
+#include "Dataflow/APA/Importance/Dynamic/StateElimination/PathExpressionStats.h"
 
 #include <cstddef>
 #include <vector>
@@ -135,4 +135,4 @@ EliminationCandidateStats collectEliminationCandidateStats(
 
 } // namespace elimination
 
-#endif // DATAFLOW_APA_IMPORTANCE_ELIMINATIONMATRIXSTATS_H_
+#endif // DATAFLOW_APA_IMPORTANCE_DYNAMIC_STATEELIMINATION_ELIMINATIONMATRIXSTATS_H_

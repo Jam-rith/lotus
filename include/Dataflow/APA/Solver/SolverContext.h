@@ -5,6 +5,7 @@
 #include "Dataflow/APA/Core/PathExpr.h"
 #include "Dataflow/APA/Core/Problem.h"
 #include "Dataflow/APA/Core/Result.h"
+#include "Dataflow/APA/Importance/Dynamic/ADT/ADTImportance.h"
 
 #include <algorithm>
 #include <cassert>
@@ -67,6 +68,8 @@ public:
     // Simple-engine eagerly propagated expression for the leaf/interval.
     expr_ref_t SimpleExpr;
   };
+
+  using adt_profile_t = ADTProfile<ADTNode>;
 
   // LCA table over the ADT. The F/B-set computation uses this to identify the
   // lowest composition node whose left/right children are crossed by a CFG
@@ -609,8 +612,72 @@ public:
       return false;
     }
     buildSelfLoopCache(R);
+    ADTStructureProfile =
+        buildADTProfile(Root, ADTVariant::StructureOnly);
     return true;
   }
+
+  void beginADTSimpleStats(ADTNode *Root) {
+    ADTSimpleProfile = buildADTProfile(Root, ADTVariant::Simple);
+  }
+
+  void beginADTDelayedStats(ADTNode *Root) {
+    ADTDelayedProfile = buildADTProfile(Root, ADTVariant::Delayed);
+  }
+
+  void recordADTSimpleLeafBase(ADTNode *Leaf, const expr_ref_t &BaseExpr,
+                               bool HasSelfLoop) {
+    recordADTLeafBaseExpr<expr_factory_t>(ADTSimpleProfile, Leaf, BaseExpr,
+                                          HasSelfLoop);
+  }
+
+  void recordADTDelayedLeafBase(ADTNode *Leaf, const expr_ref_t &BaseExpr,
+                                bool HasSelfLoop) {
+    recordADTLeafBaseExpr<expr_factory_t>(ADTDelayedProfile, Leaf, BaseExpr,
+                                          HasSelfLoop);
+  }
+
+  void recordADTSimpleComposition(ADTNode *Node, const expr_ref_t &X,
+                                  const expr_ref_t &Y, const expr_ref_t &Loop,
+                                  const expr_ref_t &LeftPrefix,
+                                  const expr_ref_t &RightPrefix) {
+    recordADTCompositionExpr<expr_factory_t>(
+        ADTSimpleProfile, Node, X, Y, Loop, LeftPrefix, RightPrefix,
+        LeftPrefix, RightPrefix);
+  }
+
+  void recordADTDelayedComposition(ADTNode *Node, const expr_ref_t &X,
+                                   const expr_ref_t &Y, const expr_ref_t &Loop,
+                                   const expr_ref_t &LeftPrefixBeforeLeaf,
+                                   const expr_ref_t &RightPrefixBeforeLeaf,
+                                   const expr_ref_t &LeftPrefix,
+                                   const expr_ref_t &RightPrefix) {
+    recordADTCompositionExpr<expr_factory_t>(
+        ADTDelayedProfile, Node, X, Y, Loop, LeftPrefixBeforeLeaf,
+        RightPrefixBeforeLeaf, LeftPrefix, RightPrefix);
+  }
+
+  void recordADTSimpleFinalLeaf(ADTNode *Leaf, const expr_ref_t &FinalExpr) {
+    recordADTFinalLeafExpr<expr_factory_t>(ADTSimpleProfile, Leaf, FinalExpr);
+  }
+
+  void recordADTDelayedFinalLeaf(ADTNode *Leaf, const expr_ref_t &FinalExpr) {
+    recordADTFinalLeafExpr<expr_factory_t>(ADTDelayedProfile, Leaf, FinalExpr);
+  }
+
+  void finishADTSimpleStats() { ADTSimpleProfile.recomputeExpressionSummary(); }
+
+  void finishADTDelayedStats() {
+    ADTDelayedProfile.recomputeExpressionSummary();
+  }
+
+  const adt_profile_t &adtStructureProfile() const {
+    return ADTStructureProfile;
+  }
+
+  const adt_profile_t &adtSimpleProfile() const { return ADTSimpleProfile; }
+
+  const adt_profile_t &adtDelayedProfile() const { return ADTDelayedProfile; }
 
   ADTNode *newLeaf(n_t N, std::unordered_map<n_t, ADTNode *> &LeafOf) {
     ADTNodes.push_back({});
@@ -783,6 +850,9 @@ public:
   result_t Results;
   std::vector<ADTNode> ADTNodes;
   std::unordered_map<n_t, bool> SelfLoops;
+  adt_profile_t ADTStructureProfile;
+  adt_profile_t ADTSimpleProfile;
+  adt_profile_t ADTDelayedProfile;
 
 private:
   static bool containsPos(const ADTNode *N, int Pos) {
