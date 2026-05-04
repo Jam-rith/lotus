@@ -1,13 +1,11 @@
 # Training Learned Ordering and Importance Models for APA
 
-本文档说明如何为 APA 训练两类 learned model：
+本文档说明如何为 APA 训练动态 state-elimination ordering model：
 
 - `linear`: 用于动态 state-elimination ordering。它运行在每一步消除决策的热路径上。
-- `mlp`: 用于 static/sparse/demand 等只需要计算一次的 one-shot importance scoring。
 
 动态 solver 的 `--elim-order learned-cost --order-model <model.json>` 只加载
-linear JSON。MLP JSON 不会被动态 ordering 加载，因为神经网络推理不应该放进
-每一步 elimination 的在线热路径。
+linear JSON。
 
 ## 1. 整体流程
 
@@ -22,7 +20,6 @@ linear JSON。MLP JSON 不会被动态 ordering 加载，因为神经网络推�
 
 - 训练脚本：`scripts/apa_train_order_model.py`
 - 动态线性推理器：`include/Dataflow/APA/Importance/Dynamic/LinearOrderingModel.h`
-- 静态神经网络推理器：`include/Dataflow/APA/Importance/Static/NeuralImportanceModel.h`
 - 通用特征定义：`include/Dataflow/APA/Importance/Dynamic/OrderingFeatures.h`
 - 增量小根堆：`include/Dataflow/APA/Importance/Dynamic/IncrementalOrderingHeap.h`
 - trace 输出：`include/Dataflow/APA/Importance/Dynamic/StateElimination/OrderTrace.h`
@@ -94,37 +91,7 @@ python3 scripts/apa_train_order_model.py /tmp/apa_order_trace.tsv \
   --out /tmp/apa_order_linear_expr_growth.json
 ```
 
-## 4. 训练 MLP one-shot importance model
-
-MLP 用纯 Python mini-batch SGD 训练，导出的 JSON 由
-`Static/NeuralImportanceModel.h` 直接推理，不引入 PyTorch、ONNX 或额外运行时依赖。
-
-注意：MLP 不用于 `--elim-order learned-cost` 的动态在线 ordering。它适合放在
-static/sparse/demand-driven/update 等只计算一次的评分阶段。
-
-```bash
-python3 scripts/apa_train_order_model.py /tmp/apa_order_trace.tsv \
-  --model mlp \
-  --hidden-dims 16 8 \
-  --epochs 200 \
-  --learning-rate 0.01 \
-  --weight-decay 0.0001 \
-  --batch-size 32 \
-  --out /tmp/apa_static_importance_mlp.json
-```
-
-如果样本很少，可以先用更小网络做烟测：
-
-```bash
-python3 scripts/apa_train_order_model.py /tmp/apa_order_trace.tsv \
-  --model mlp \
-  --hidden-dims 8 \
-  --epochs 20 \
-  --batch-size 8 \
-  --out /tmp/apa_static_importance_mlp_smoke.json
-```
-
-## 5. 关于 `matrix_*` 全局特征
+## 4. 关于 `matrix_*` 全局特征
 
 训练脚本默认只使用局部 candidate features。这是有意的：局部特征只会在消除
 某个节点后影响一小部分候选点，因此 learned ordering 可以用增量小根堆维护，
@@ -143,12 +110,12 @@ solver 必须刷新全部 alive candidates。只有在明确想做离线实验�
 
 ```bash
 python3 scripts/apa_train_order_model.py /tmp/apa_order_trace.tsv \
-  --model mlp \
+  --model linear \
   --include-matrix-features \
-  --out /tmp/apa_static_importance_mlp_with_matrix.json
+  --out /tmp/apa_order_linear_with_matrix.json
 ```
 
-## 6. 使用训练好的 ordering model
+## 5. 使用训练好的 ordering model
 
 训练完成 linear 模型后，用 `learned-cost` 运行：
 
@@ -164,7 +131,7 @@ python3 scripts/apa_train_order_model.py /tmp/apa_order_trace.tsv \
 如果模型文件加载失败，`learned-cost` 当前会退回结构分数路径，因此实验时应检查
 summary 中的 `requested_order` 和 `executed_order`，并保留命令输出/测试日志。
 
-## 7. 评价 ordering 函数
+## 6. 评价 ordering 函数
 
 不要只看训练脚本输出的 `validation_rmse_transformed`。它只说明模型是否能拟合
 局部 proxy label，不能证明排序函数真的更快。
@@ -196,7 +163,7 @@ done
 - memory ratio: `learned_peak_rss_kb / baseline_peak_rss_kb`
 - expression reduction: `1 - learned_expr_nodes / baseline_expr_nodes`
 
-## 8. 推荐实验组织方式
+## 7. 推荐实验组织方式
 
 建议把数据分成三类：
 
@@ -215,25 +182,23 @@ expr_total_unique_nodes  expr_total_concat_count  expr_total_union_count
 expr_total_star_count  expr_max_depth
 ```
 
-## 9. 当前限制
+## 8. 当前限制
 
-当前 learned ordering 真正改变排序的是 `StateElimination`。ADT/ADTDelayed 侧已经
-有共享 ordering adapter 入口，但默认仍执行论文中的结构递归顺序，因为任意重排
-ADT composition node 需要额外证明不破坏分解树语义。
+当前 learned ordering 只改变 `StateElimination`。ADT/ADTDelayed 默认执行论文中
+的结构递归顺序，不再挂接 dynamic importance 统计或 tree-level ordering。
 
 因此目前建议：
 
 - 用 `--elim-method state` 研究 learned ordering 的有效性。
-- ADT/ADTDelayed 先记录 profile 和表达式统计，再单独设计合法的 tree-level
+- ADT/ADTDelayed 如果后续要优化，需要重新设计合法的 tree-level
   ordering/splitting policy。
 
-## 10. 常见问题
+## 9. 常见问题
 
 模型越复杂越好吗？
 
-动态 ordering 不使用 MLP。MLP 适合 static/sparse/demand/update 这类 one-shot
-importance scoring。即便在这些位置，小 MLP 也通常比深网络更合适，例如
-`--hidden-dims 16 8` 或 `--hidden-dims 8`。
+目前动态 ordering 只使用 linear model。先保证特征、label 和真实 runtime/memory
+评价闭环稳定，再考虑更复杂模型。
 
 为什么默认不用 `matrix_*`？
 

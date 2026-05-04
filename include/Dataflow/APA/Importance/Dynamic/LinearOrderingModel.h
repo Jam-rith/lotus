@@ -16,9 +16,7 @@ namespace elimination {
 // Inference-only linear ordering model for dynamic elimination.
 //
 // Dynamic ordering is queried repeatedly while the elimination matrix changes.
-// Keep this model deliberately cheap: standardized linear regression only, no
-// neural layers. Heavier neural models belong to one-shot/static importance
-// scoring where each node or region is scored once.
+// Keep this model deliberately cheap: standardized linear regression only.
 class LinearOrderingModel final {
 public:
   bool loadFromFile(const std::string &Path) {
@@ -40,8 +38,7 @@ public:
                            std::istreambuf_iterator<char>());
 
     const auto ModelType = parseString(Text, "model_type");
-    if (ModelType.find("mlp") != std::string::npos ||
-        ModelType.find("neural") != std::string::npos) {
+    if (!ModelType.empty() && ModelType != "linear") {
       return false;
     }
 

@@ -1,7 +1,6 @@
 #ifndef DATAFLOW_APA_ENGINES_ADTSIMPLESOLVER_H_
 #define DATAFLOW_APA_ENGINES_ADTSIMPLESOLVER_H_
 
-#include "Dataflow/APA/Importance/Dynamic/ADT/ADTOrdering.h"
 #include "Dataflow/APA/Solver/SolverContext.h"
 
 namespace elimination {
@@ -41,10 +40,6 @@ bool computeADTSimplePathExpr(
   assert(W->Left && W->Right);
   auto *First = W->Left;
   auto *Second = W->Right;
-  if (!shouldVisitLeftADTSubtreeFirst(W, Ctx.Opts.OrderHeuristic)) {
-    First = W->Right;
-    Second = W->Left;
-  }
   if (!computeADTSimplePathExpr(Ctx, R, First, LeafOf, LeafByPos)) {
     return false;
   }

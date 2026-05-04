@@ -1,7 +1,11 @@
 #ifndef DATAFLOW_APA_IMPORTANCE_IMPORTANCEMODEL_H_
 #define DATAFLOW_APA_IMPORTANCE_IMPORTANCEMODEL_H_
 
+#include "Dataflow/APA/Importance/Dynamic/StateElimination/EliminationMatrixStats.h"
 #include "Dataflow/APA/Importance/Static/StaticImportanceProfile.h"
+
+#include <cstddef>
+#include <limits>
 
 namespace elimination {
 
@@ -25,6 +29,16 @@ struct ImportanceModelConfig final {
   double UpdateWeight = 1.0;
 };
 
+// Solver-independent score input for ordinary state elimination. The solver is
+// responsible for collecting facts from its current matrix; this model owns the
+// equations that turn those facts into costs.
+struct StateEliminationImportanceFeatures final {
+  EliminationCandidateStats Candidate;
+  std::size_t SelfExprSize = 0;
+  std::size_t MatrixNodeCount = 0;
+  bool HasNontrivialSelfLoop = false;
+};
+
 template <typename NodeT> class ImportanceModel {
 public:
   using node_t = NodeT;
@@ -44,7 +58,74 @@ public:
 
   const ImportanceModelConfig &config() const { return Config; }
 
+  std::size_t scoreStateStructural(
+      const StateEliminationImportanceFeatures &Features) const {
+    return saturatingMul(Features.Candidate.AlivePredCount,
+                         Features.Candidate.AliveSuccCount);
+  }
+
+  std::size_t scoreStateExpressionAware(
+      const StateEliminationImportanceFeatures &Features) const {
+    return saturatingAdd(
+        expressionCrossProductCost(Features),
+        saturatingMul(Features.Candidate.FillInCount,
+                      static_cast<std::size_t>(1)));
+  }
+
+  std::size_t scoreStateStarRisk(
+      const StateEliminationImportanceFeatures &Features) const {
+    auto Score = scoreStateExpressionAware(Features);
+    if (Features.HasNontrivialSelfLoop) {
+      Score = saturatingAdd(
+          Score,
+          saturatingMul(std::max<std::size_t>(1, Features.SelfExprSize),
+                        Features.MatrixNodeCount));
+    }
+    return Score;
+  }
+
 private:
+  static std::size_t saturatingAdd(std::size_t Lhs, std::size_t Rhs) {
+    const auto Max = std::numeric_limits<std::size_t>::max();
+    if (Max - Lhs < Rhs) {
+      return Max;
+    }
+    return Lhs + Rhs;
+  }
+
+  static std::size_t saturatingMul(std::size_t Lhs, std::size_t Rhs) {
+    const auto Max = std::numeric_limits<std::size_t>::max();
+    if (Lhs != 0 && Rhs > Max / Lhs) {
+      return Max;
+    }
+    return Lhs * Rhs;
+  }
+
+  static std::size_t expressionWeight(const PathExpressionStats &Stats) {
+    return saturatingAdd(
+        std::max<std::size_t>(1, Stats.UniqueNodeCount),
+        saturatingAdd(Stats.UnionCount,
+                      saturatingAdd(Stats.ConcatCount,
+                                    saturatingMul(Stats.StarCount, 2))));
+  }
+
+  static std::size_t expressionCrossProductCost(
+      const StateEliminationImportanceFeatures &Features) {
+    const auto Crosses = Features.Candidate.CrossCombinationCount;
+    if (Crosses == 0) {
+      return 0;
+    }
+
+    const auto Incoming =
+        expressionWeight(Features.Candidate.IncomingExprStats);
+    const auto Outgoing =
+        expressionWeight(Features.Candidate.OutgoingExprStats);
+    const auto Self =
+        std::max<std::size_t>(1, expressionWeight(Features.Candidate.SelfExprStats));
+    const auto InputCost = saturatingAdd(Incoming, saturatingAdd(Self, Outgoing));
+    return saturatingMul(Crosses, InputCost);
+  }
+
   ImportanceModelConfig Config;
 };
 

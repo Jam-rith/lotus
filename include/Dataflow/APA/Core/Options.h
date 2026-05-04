@@ -92,8 +92,7 @@ struct EliminationOptions final {
   double OrderProgressTimeIntervalSec = 0.0;
   std::string OrderProgressTag;
   // Optional linear JSON model produced by scripts/apa_train_order_model.py.
-  // It is used only when OrderHeuristic is LearnedCost. Neural/MLP models are
-  // intentionally reserved for one-shot static importance scoring.
+  // It is used only when OrderHeuristic is LearnedCost.
   std::string OrderModelPath;
 };
 

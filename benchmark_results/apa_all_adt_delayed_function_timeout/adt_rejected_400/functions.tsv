@@ -1,0 +1,181 @@
+input	function	cfg_blocks	cfg_edges	cfg_insts	expression-aware_completed	expression-aware_elapsed_sec	expression-aware_used_adt	expression-aware_fallback	expression-aware_killed	min-pred-succ_completed	min-pred-succ_elapsed_sec	min-pred-succ_used_adt	min-pred-succ_fallback	min-pred-succ_killed	original_completed	original_elapsed_sec	original_used_adt	original_fallback	original_killed	star-risk_completed	star-risk_elapsed_sec	star-risk_used_adt	star-risk_fallback	star-risk_killed
+400.perlbench.bc	PerlIOBase_close	16	22	67	1	0.011324	0	adt-rejected	0	1	0.011619	0	adt-rejected	0	1	0.008431	0	adt-rejected	0	1	0.008551	0	adt-rejected	0
+400.perlbench.bc	PerlIOBase_pushed	25	36	106	1	0.023037	0	adt-rejected	0	1	0.036703	0	adt-rejected	0	1	0.037417	0	adt-rejected	0	1	0.021540	0	adt-rejected	0
+400.perlbench.bc	PerlIOBase_read	21	29	83	1	0.022852	0	adt-rejected	0	1	0.022772	0	adt-rejected	0	1	0.035384	0	adt-rejected	0	1	0.018125	0	adt-rejected	0
+400.perlbench.bc	PerlIOBuf_flush	27	39	152	1	0.035122	0	adt-rejected	0	1	0.068025	0	adt-rejected	0	1	0.046900	0	adt-rejected	0	1	0.032170	0	adt-rejected	0
+400.perlbench.bc	PerlIOCrlf_get_cnt	37	51	165	1	0.084461	0	adt-rejected	0	1	0.134539	0	adt-rejected	0	1	1.176247	0	adt-rejected	0	1	0.072416	0	adt-rejected	0
+400.perlbench.bc	PerlIOCrlf_pushed	12	16	50	1	0.004698	0	adt-rejected	0	1	0.006274	0	adt-rejected	0	1	0.007046	0	adt-rejected	0	1	0.004415	0	adt-rejected	0
+400.perlbench.bc	PerlIOCrlf_unread	25	34	147	1	0.067022	0	adt-rejected	0	1	0.101155	0	adt-rejected	0	1	0.098068	0	adt-rejected	0	1	0.062452	0	adt-rejected	0
+400.perlbench.bc	PerlIOCrlf_write	28	38	128	1	0.060030	0	adt-rejected	0	1	0.112027	0	adt-rejected	0	1	0.323409	0	adt-rejected	0	1	0.056730	0	adt-rejected	0
+400.perlbench.bc	PerlIORaw_pushed	21	29	73	1	0.013678	0	adt-rejected	0	1	0.015963	0	adt-rejected	0	1	0.043201	0	adt-rejected	0	1	0.013023	0	adt-rejected	0
+400.perlbench.bc	PerlIOStdio_read	16	22	56	1	0.009631	0	adt-rejected	0	1	0.011087	0	adt-rejected	0	1	0.022101	0	adt-rejected	0	1	0.008862	0	adt-rejected	0
+400.perlbench.bc	PerlIOStdio_set_ptrcnt	3	2	9	0				0	0				0	1	0.000025	0	none	0	0				0
+400.perlbench.bc	PerlIOStdio_unread	13	18	70	1	0.016322	0	adt-rejected	0	1	0.021542	0	adt-rejected	0	1	0.018332	0	adt-rejected	0	1	0.015387	0	adt-rejected	0
+400.perlbench.bc	PerlIOStdio_write	8	10	26	1	0.002210	0	adt-rejected	0	1	0.002277	0	adt-rejected	0	1	0.001716	0	adt-rejected	0	1	0.002121	0	adt-rejected	0
+400.perlbench.bc	PerlIOUnix_close	16	21	56	1	0.005314	0	adt-rejected	0	1	0.006415	0	adt-rejected	0	1	0.003630	0	adt-rejected	0	1	0.004818	0	adt-rejected	0
+400.perlbench.bc	PerlIOUnix_read	19	27	65	1	0.007370	0	adt-rejected	0	1	0.011394	0	adt-rejected	0	1	0.007711	0	adt-rejected	0	1	0.007103	0	adt-rejected	0
+400.perlbench.bc	PerlIOUnix_write	11	15	37	1	0.003024	0	adt-rejected	0	1	0.003556	0	adt-rejected	0	1	0.002713	0	adt-rejected	0	1	0.002884	0	adt-rejected	0
+400.perlbench.bc	PerlIO_allocate	13	16	42	1	0.004115	0	adt-rejected	0	1	0.004744	0	adt-rejected	0	1	0.009433	0	adt-rejected	0	1	0.004000	0	adt-rejected	0
+400.perlbench.bc	PerlIO_apply_layera	8	10	28	1	0.002555	0	adt-rejected	0	1	0.002346	0	adt-rejected	0	1	0.001804	0	adt-rejected	0	1	0.002426	0	adt-rejected	0
+400.perlbench.bc	PerlIO_findFILE	7	8	25	1	0.001770	0	adt-rejected	0	1	0.001624	0	adt-rejected	0	1	0.001214	0	adt-rejected	0	1	0.001587	0	adt-rejected	0
+400.perlbench.bc	PerlIO_find_layer	20	29	93	1	0.017414	0	adt-rejected	0	1	0.021369	0	adt-rejected	0	1	0.026891	0	adt-rejected	0	1	0.013789	0	adt-rejected	0
+400.perlbench.bc	PerlIO_openn	46	67	179	1	0.156117	0	adt-rejected	0	1	0.229255	0	adt-rejected	0	1	1.079946	0	adt-rejected	0	1	0.108450	0	adt-rejected	0
+400.perlbench.bc	PerlIO_parse_layers	80	129	350	1	0.979469	0	adt-rejected	0	1	48.826139	0	adt-rejected	0	0				1	1	1.127596	0	adt-rejected	0
+400.perlbench.bc	PerlIO_push	27	38	97	1	0.014367	0	adt-rejected	0	1	0.021700	0	adt-rejected	0	1	0.015280	0	adt-rejected	0	1	0.011838	0	adt-rejected	0
+400.perlbench.bc	PerlIO_releaseFILE	9	11	28	1	0.002533	0	adt-rejected	0	1	0.002345	0	adt-rejected	0	1	0.002827	0	adt-rejected	0	1	0.002428	0	adt-rejected	0
+400.perlbench.bc	Perl_apply	63	91	250	1	0.156592	0	adt-rejected	0	1	0.612067	0	adt-rejected	0	1	1.711753	0	adt-rejected	0	1	0.119704	0	adt-rejected	0
+400.perlbench.bc	Perl_bytes_from_utf8	21	30	113	1	0.029557	0	adt-rejected	0	1	0.053782	0	adt-rejected	0	1	0.046167	0	adt-rejected	0	1	0.027567	0	adt-rejected	0
+400.perlbench.bc	Perl_ck_fun	171	268	969	1	9.407416	0	adt-rejected	0	0				1	0				1	1	11.224893	0	adt-rejected	0
+400.perlbench.bc	Perl_ck_subr	148	229	705	1	9.366601	0	adt-rejected	0	1	26.665632	0	adt-rejected	0	0				1	1	6.884183	0	adt-rejected	0
+400.perlbench.bc	Perl_delimcpy	19	25	82	1	0.029774	0	adt-rejected	0	1	0.033671	0	adt-rejected	0	1	0.077437	0	adt-rejected	0	1	0.029660	0	adt-rejected	0
+400.perlbench.bc	Perl_do_eof	38	58	169	1	0.078200	0	adt-rejected	0	1	0.177998	0	adt-rejected	0	1	0.488971	0	adt-rejected	0	1	0.072403	0	adt-rejected	0
+400.perlbench.bc	Perl_do_exec3	142	233	595	1	2.683815	0	adt-rejected	0	0				1	0				1	1	1.768903	0	adt-rejected	0
+400.perlbench.bc	Perl_do_magic_dump	132	180	421	1	1.756353	0	adt-rejected	0	1	43.938486	0	adt-rejected	0	0				1	1	2.776927	0	adt-rejected	0
+400.perlbench.bc	Perl_fbm_instr	113	171	435	1	0.415799	0	adt-rejected	0	1	1.293928	0	adt-rejected	0	1	2.772261	0	adt-rejected	0	1	0.402522	0	adt-rejected	0
+400.perlbench.bc	Perl_find_runcv	23	32	92	1	0.036002	0	adt-rejected	0	1	0.053368	0	adt-rejected	0	1	0.133582	0	adt-rejected	0	1	0.026909	0	adt-rejected	0
+400.perlbench.bc	Perl_find_script	47	72	190	1	0.343511	0	adt-rejected	0	1	0.406459	0	adt-rejected	0	0				1	1	0.348720	0	adt-rejected	0
+400.perlbench.bc	Perl_fold_constants	53	89	232	1	0.311246	0	adt-rejected	0	1	0.628128	0	adt-rejected	0	1	27.632291	0	adt-rejected	0	1	0.320797	0	adt-rejected	0
+400.perlbench.bc	Perl_getcwd_sv	50	74	268	1	0.268287	0	adt-rejected	0	1	0.644115	0	adt-rejected	0	1	49.415878	0	adt-rejected	0	1	0.284013	0	adt-rejected	0
+400.perlbench.bc	Perl_grok_bin	63	103	311	1	9.059166	0	adt-rejected	0	1	10.188524	0	adt-rejected	0	0				1	1	8.941910	0	adt-rejected	0
+400.perlbench.bc	Perl_grok_hex	61	99	317	1	9.230357	0	adt-rejected	0	1	10.341941	0	adt-rejected	0	1	183.353421	0	adt-rejected	0	1	9.476391	0	adt-rejected	0
+400.perlbench.bc	Perl_grok_number	209	325	819	1	6.104548	0	adt-rejected	0	1	83.677136	0	adt-rejected	0	0				1	1	2.957351	0	adt-rejected	0
+400.perlbench.bc	Perl_grok_oct	55	91	260	1	14.127048	0	adt-rejected	0	1	15.463827	0	adt-rejected	0	0				1	1	14.721264	0	adt-rejected	0
+400.perlbench.bc	Perl_gv_fetchmeth	90	139	462	1	8.818667	0	adt-rejected	0	1	44.289022	0	adt-rejected	0	0				1	1	8.839580	0	adt-rejected	0
+400.perlbench.bc	Perl_gv_fetchpv	290	515	1359	1	104.301681	0	adt-rejected	0	0				1	0				1	1	4.163476	0	adt-rejected	0
+400.perlbench.bc	Perl_hv_clear_placeholders	25	34	138	1	0.070620	0	adt-rejected	0	1	0.087379	0	adt-rejected	0	1	0.312656	0	adt-rejected	0	1	0.066659	0	adt-rejected	0
+400.perlbench.bc	Perl_hv_iternext_flags	60	84	305	1	0.189622	0	adt-rejected	0	1	0.588426	0	adt-rejected	0	1	1.097630	0	adt-rejected	0	1	0.155540	0	adt-rejected	0
+400.perlbench.bc	Perl_ibcmp	8	10	40	1	0.005423	0	adt-rejected	0	1	0.004927	0	adt-rejected	0	1	0.005410	0	adt-rejected	0	1	0.005078	0	adt-rejected	0
+400.perlbench.bc	Perl_ibcmp_locale	8	10	40	1	0.004811	0	adt-rejected	0	1	0.004943	0	adt-rejected	0	1	0.005357	0	adt-rejected	0	1	0.004796	0	adt-rejected	0
+400.perlbench.bc	Perl_ibcmp_utf8	77	120	320	1	4.333093	0	adt-rejected	0	1	55.506319	0	adt-rejected	0	0				1	1	4.650085	0	adt-rejected	0
+400.perlbench.bc	Perl_init_argv_symbols	36	50	210	1	0.130801	0	adt-rejected	0	1	0.362512	0	adt-rejected	0	1	1.309822	0	adt-rejected	0	1	0.106313	0	adt-rejected	0
+400.perlbench.bc	Perl_instr	20	27	65	1	0.018717	0	adt-rejected	0	1	0.023520	0	adt-rejected	0	1	0.068668	0	adt-rejected	0	1	0.020876	0	adt-rejected	0
+400.perlbench.bc	Perl_is_gv_magical	45	127	101	1	0.008663	0	adt-rejected	0	1	0.018584	0	adt-rejected	0	1	0.005291	0	adt-rejected	0	1	0.007938	0	adt-rejected	0
+400.perlbench.bc	Perl_is_utf8_char	42	59	128	1	0.035254	0	adt-rejected	0	1	0.061225	0	adt-rejected	0	1	0.115521	0	adt-rejected	0	1	0.036049	0	adt-rejected	0
+400.perlbench.bc	Perl_is_utf8_string	19	26	52	1	0.006105	0	adt-rejected	0	1	0.007532	0	adt-rejected	0	1	0.010033	0	adt-rejected	0	1	0.006385	0	adt-rejected	0
+400.perlbench.bc	Perl_is_utf8_string_loc	25	35	65	1	0.008074	0	adt-rejected	0	1	0.011092	0	adt-rejected	0	1	0.015923	0	adt-rejected	0	1	0.008690	0	adt-rejected	0
+400.perlbench.bc	Perl_localize	61	98	240	1	0.325739	0	adt-rejected	0	1	1.005828	0	adt-rejected	0	0				1	1	0.297960	0	adt-rejected	0
+400.perlbench.bc	Perl_magic_setenv	25	36	141	1	0.056100	0	adt-rejected	0	1	0.097961	0	adt-rejected	0	1	0.088018	0	adt-rejected	0	1	0.059057	0	adt-rejected	0
+400.perlbench.bc	Perl_mg_find	10	12	30	1	0.002239	0	adt-rejected	0	1	0.002286	0	adt-rejected	0	1	0.001821	0	adt-rejected	0	1	0.002125	0	adt-rejected	0
+400.perlbench.bc	Perl_mg_get	27	40	164	1	0.088923	0	adt-rejected	0	1	0.126070	0	adt-rejected	0	1	1.351298	0	adt-rejected	0	1	0.089386	0	adt-rejected	0
+400.perlbench.bc	Perl_mg_length	19	25	106	1	0.013336	0	adt-rejected	0	1	0.025092	0	adt-rejected	0	1	0.012877	0	adt-rejected	0	1	0.013498	0	adt-rejected	0
+400.perlbench.bc	Perl_mg_size	13	17	55	1	0.004795	0	adt-rejected	0	1	0.006167	0	adt-rejected	0	1	0.005810	0	adt-rejected	0	1	0.004825	0	adt-rejected	0
+400.perlbench.bc	Perl_my_atof2	77	113	399	1	0.676131	0	adt-rejected	0	1	3.242072	0	adt-rejected	0	0				1	1	0.592223	0	adt-rejected	0
+400.perlbench.bc	Perl_my_popen	60	86	325	1	0.194147	0	adt-rejected	0	1	0.712034	0	adt-rejected	0	1	2.552893	0	adt-rejected	0	1	0.125010	0	adt-rejected	0
+400.perlbench.bc	Perl_my_popen_list	50	70	268	1	0.095068	0	adt-rejected	0	1	0.258972	0	adt-rejected	0	1	0.833791	0	adt-rejected	0	1	0.069167	0	adt-rejected	0
+400.perlbench.bc	Perl_newASSIGNOP	100	150	497	1	2.191501	0	adt-rejected	0	1	16.338599	0	adt-rejected	0	1	82.609871	0	adt-rejected	0	1	2.142801	0	adt-rejected	0
+400.perlbench.bc	Perl_nextargv	104	164	650	1	1.344936	0	adt-rejected	0	1	128.298813	0	adt-rejected	0	0				1	1	1.700523	0	adt-rejected	0
+400.perlbench.bc	Perl_ninstr	19	26	75	1	0.022441	0	adt-rejected	0	1	0.027821	0	adt-rejected	0	1	0.082141	0	adt-rejected	0	1	0.023661	0	adt-rejected	0
+400.perlbench.bc	Perl_op_clear	36	63	165	1	0.021563	0	adt-rejected	0	1	0.067856	0	adt-rejected	0	1	0.015931	0	adt-rejected	0	1	0.021373	0	adt-rejected	0
+400.perlbench.bc	Perl_op_const_sv	48	72	178	1	0.156535	0	adt-rejected	0	1	0.372639	0	adt-rejected	0	1	2.565178	0	adt-rejected	0	1	0.139577	0	adt-rejected	0
+400.perlbench.bc	Perl_pad_alloc	19	26	109	1	0.014964	0	adt-rejected	0	1	0.031941	0	adt-rejected	0	1	0.022618	0	adt-rejected	0	1	0.014823	0	adt-rejected	0
+400.perlbench.bc	Perl_pad_check_dup	37	63	202	1	0.170973	0	adt-rejected	0	1	1.013703	0	adt-rejected	0	1	1.253688	0	adt-rejected	0	1	0.125704	0	adt-rejected	0
+400.perlbench.bc	Perl_pad_findmy	26	37	116	1	0.039723	0	adt-rejected	0	1	0.057211	0	adt-rejected	0	1	0.351953	0	adt-rejected	0	1	0.038995	0	adt-rejected	0
+400.perlbench.bc	Perl_peep	328	533	1903	1	30.616183	0	adt-rejected	0	0				1	0				1	1	30.961714	0	adt-rejected	0
+400.perlbench.bc	Perl_pmruntime	101	147	535	1	3.659755	0	adt-rejected	0	1	63.135604	0	adt-rejected	0	0				1	1	3.522235	0	adt-rejected	0
+400.perlbench.bc	Perl_pp_aslice	48	67	226	1	0.174868	0	adt-rejected	0	1	0.348084	0	adt-rejected	0	1	17.021671	0	adt-rejected	0	1	0.117793	0	adt-rejected	0
+400.perlbench.bc	Perl_pp_entersub	141	212	1047	1	45.248967	0	adt-rejected	0	1	20.451098	0	adt-rejected	0	0				1	1	2.616697	0	adt-rejected	0
+400.perlbench.bc	Perl_pp_exec	26	35	158	1	0.095831	0	adt-rejected	0	1	0.125979	0	adt-rejected	0	1	0.182825	0	adt-rejected	0	1	0.084348	0	adt-rejected	0
+400.perlbench.bc	Perl_pp_flop	112	166	603	1	75.281153	0	adt-rejected	0	1	75.244346	0	adt-rejected	0	1	79.253870	0	adt-rejected	0	1	71.231621	0	adt-rejected	0
+400.perlbench.bc	Perl_pp_formline	344	519	2057	1	150.881845	0	adt-rejected	0	0				1	0				1	1	173.632919	0	adt-rejected	0
+400.perlbench.bc	Perl_pp_fttext	123	187	714	1	12.474448	0	adt-rejected	0	1	20.996642	0	adt-rejected	0	1	45.376650	0	adt-rejected	0	1	11.690637	0	adt-rejected	0
+400.perlbench.bc	Perl_pp_goto	182	275	1445	0				1	1	119.756170	0	adt-rejected	0	0				1	1	5.865806	0	adt-rejected	0
+400.perlbench.bc	Perl_pp_hslice	68	97	307	1	1.132606	0	adt-rejected	0	1	3.497833	0	adt-rejected	0	0				1	1	1.110320	0	adt-rejected	0
+400.perlbench.bc	Perl_pp_leavesublv	146	207	1594	1	4.098264	0	adt-rejected	0	1	55.122577	0	adt-rejected	0	1	8.457834	0	adt-rejected	0	1	3.617848	0	adt-rejected	0
+400.perlbench.bc	Perl_pp_leavewrite	84	132	651	1	13.419700	0	adt-rejected	0	1	14.710504	0	adt-rejected	0	1	21.958443	0	adt-rejected	0	1	11.603803	0	adt-rejected	0
+400.perlbench.bc	Perl_pp_negate	103	149	462	1	0.737948	0	adt-rejected	0	1	3.332823	0	adt-rejected	0	0				1	1	0.650058	0	adt-rejected	0
+400.perlbench.bc	Perl_pp_pow	122	175	604	1	14.984116	0	adt-rejected	0	1	17.369620	0	adt-rejected	0	0				1	1	12.221184	0	adt-rejected	0
+400.perlbench.bc	Perl_pp_print	108	167	592	1	22.911192	0	adt-rejected	0	1	24.740738	0	adt-rejected	0	1	23.108930	0	adt-rejected	0	1	22.025247	0	adt-rejected	0
+400.perlbench.bc	Perl_pp_prototype	42	62	213	1	0.153176	0	adt-rejected	0	1	0.262468	0	adt-rejected	0	1	1.772141	0	adt-rejected	0	1	0.087303	0	adt-rejected	0
+400.perlbench.bc	Perl_pp_reverse	40	54	246	1	0.240740	0	adt-rejected	0	1	0.374200	0	adt-rejected	0	1	0.842271	0	adt-rejected	0	1	0.148649	0	adt-rejected	0
+400.perlbench.bc	Perl_pp_rv2av	141	203	704	1	2.035381	0	adt-rejected	0	1	6.524735	0	adt-rejected	0	1	54.468150	0	adt-rejected	0	1	2.240077	0	adt-rejected	0
+400.perlbench.bc	Perl_pp_rv2gv	81	121	465	1	2.302060	0	adt-rejected	0	1	3.929674	0	adt-rejected	0	1	2.265291	0	adt-rejected	0	1	2.011393	0	adt-rejected	0
+400.perlbench.bc	Perl_pp_rv2hv	109	162	524	1	4.045237	0	adt-rejected	0	1	5.336585	0	adt-rejected	0	1	16.407287	0	adt-rejected	0	1	3.722379	0	adt-rejected	0
+400.perlbench.bc	Perl_pp_rv2sv	63	96	332	1	0.297289	0	adt-rejected	0	1	0.674531	0	adt-rejected	0	1	0.521676	0	adt-rejected	0	1	0.248952	0	adt-rejected	0
+400.perlbench.bc	Perl_pp_subst	215	318	1321	1	145.793266	0	adt-rejected	0	0				1	0				1	1	126.836369	0	adt-rejected	0
+400.perlbench.bc	Perl_pp_system	65	90	309	1	0.160065	0	adt-rejected	0	1	0.266157	0	adt-rejected	0	1	32.106431	0	adt-rejected	0	1	0.131618	0	adt-rejected	0
+400.perlbench.bc	Perl_pv_display	32	49	110	1	0.034911	0	adt-rejected	0	1	0.369432	0	adt-rejected	0	1	0.242934	0	adt-rejected	0	1	0.031710	0	adt-rejected	0
+400.perlbench.bc	Perl_pv_uni_display	33	52	116	1	0.051127	0	adt-rejected	0	1	0.235615	0	adt-rejected	0	1	2.519227	0	adt-rejected	0	1	0.054807	0	adt-rejected	0
+400.perlbench.bc	Perl_rninstr	17	23	68	1	0.022270	0	adt-rejected	0	1	0.026995	0	adt-rejected	0	1	0.080404	0	adt-rejected	0	1	0.022570	0	adt-rejected	0
+400.perlbench.bc	Perl_scan_num	248	437	1238	1	35.701387	0	adt-rejected	0	0				1	0				1	1	37.143270	0	adt-rejected	0
+400.perlbench.bc	Perl_scan_vstring	64	99	278	1	0.260179	0	adt-rejected	0	1	2.421101	0	adt-rejected	0	0				1	1	0.271626	0	adt-rejected	0
+400.perlbench.bc	Perl_screaminstr	46	68	283	1	0.305144	0	adt-rejected	0	1	0.620850	0	adt-rejected	0	1	5.058483	0	adt-rejected	0	1	0.259455	0	adt-rejected	0
+400.perlbench.bc	Perl_setenv_getix	8	10	38	1	0.004640	0	adt-rejected	0	1	0.004580	0	adt-rejected	0	1	0.003417	0	adt-rejected	0	1	0.004423	0	adt-rejected	0
+400.perlbench.bc	Perl_sv_2cv	57	84	302	1	0.586950	0	adt-rejected	0	1	0.894170	0	adt-rejected	0	1	3.485303	0	adt-rejected	0	1	0.560940	0	adt-rejected	0
+400.perlbench.bc	Perl_sv_2pv_flags	167	260	982	1	2.891417	0	adt-rejected	0	1	13.598140	0	adt-rejected	0	1	5.046866	0	adt-rejected	0	1	2.788336	0	adt-rejected	0
+400.perlbench.bc	Perl_sv_gets	168	239	955	1	64.668882	0	adt-rejected	0	0				1	0				1	1	50.008806	0	adt-rejected	0
+400.perlbench.bc	Perl_sv_inc	101	149	502	1	0.653891	0	adt-rejected	0	1	2.681436	0	adt-rejected	0	1	181.939718	0	adt-rejected	0	1	0.548250	0	adt-rejected	0
+400.perlbench.bc	Perl_sv_peek	111	169	452	1	0.848213	0	adt-rejected	0	1	3.982075	0	adt-rejected	0	0				1	1	0.957078	0	adt-rejected	0
+400.perlbench.bc	Perl_sv_pos_b2u	46	64	252	1	0.156824	0	adt-rejected	0	1	0.318544	0	adt-rejected	0	1	0.411160	0	adt-rejected	0	1	0.153192	0	adt-rejected	0
+400.perlbench.bc	Perl_sv_utf8_decode	13	17	60	1	0.006068	0	adt-rejected	0	1	0.008187	0	adt-rejected	0	1	0.004379	0	adt-rejected	0	1	0.006135	0	adt-rejected	0
+400.perlbench.bc	Perl_sv_utf8_upgrade_flags	37	54	206	1	0.174335	0	adt-rejected	0	1	0.278266	0	adt-rejected	0	1	0.401129	0	adt-rejected	0	1	0.174567	0	adt-rejected	0
+400.perlbench.bc	Perl_utf8_distance	37	53	172	1	0.033347	0	adt-rejected	0	1	0.085606	0	adt-rejected	0	1	0.037021	0	adt-rejected	0	1	0.032604	0	adt-rejected	0
+400.perlbench.bc	Perl_utf8_length	31	45	143	1	0.019208	0	adt-rejected	0	1	0.049552	0	adt-rejected	0	1	0.018416	0	adt-rejected	0	1	0.021030	0	adt-rejected	0
+400.perlbench.bc	Perl_utf8_to_bytes	15	22	69	1	0.011659	0	adt-rejected	0	1	0.019379	0	adt-rejected	0	1	0.017177	0	adt-rejected	0	1	0.011817	0	adt-rejected	0
+400.perlbench.bc	Perl_utf8n_to_uvuni	151	224	477	1	81.932591	0	adt-rejected	0	1	119.893669	0	adt-rejected	0	0				1	1	85.417195	0	adt-rejected	0
+400.perlbench.bc	Perl_whichsig	12	15	33	1	0.002040	0	adt-rejected	0	1	0.002294	0	adt-rejected	0	1	0.001862	0	adt-rejected	0	1	0.002016	0	adt-rejected	0
+400.perlbench.bc	Perl_yyparse	284	519	2269	1	74.240193	0	adt-rejected	0	0				1	0				1	1	61.641398	0	adt-rejected	0
+400.perlbench.bc	S_cl_is_anything	13	17	55	1	0.006493	0	adt-rejected	0	1	0.007664	0	adt-rejected	0	1	0.007653	0	adt-rejected	0	1	0.006082	0	adt-rejected	0
+400.perlbench.bc	S_closest_cop	16	22	53	1	0.006943	0	adt-rejected	0	1	0.008874	0	adt-rejected	0	1	0.010802	0	adt-rejected	0	1	0.007211	0	adt-rejected	0
+400.perlbench.bc	S_do_trans_complex_utf8	80	113	509	1	1.525603	0	adt-rejected	0	1	8.131276	0	adt-rejected	0	0				1	1	1.094565	0	adt-rejected	0
+400.perlbench.bc	S_do_trans_count_utf8	27	37	150	1	0.068457	0	adt-rejected	0	1	0.144674	0	adt-rejected	0	1	0.356391	0	adt-rejected	0	1	0.048846	0	adt-rejected	0
+400.perlbench.bc	S_do_trans_simple_utf8	52	72	338	1	0.494806	0	adt-rejected	0	1	0.948563	0	adt-rejected	0	1	117.211443	0	adt-rejected	0	1	0.370522	0	adt-rejected	0
+400.perlbench.bc	S_dofindlabel	41	61	170	1	0.117208	0	adt-rejected	0	1	1.807692	0	adt-rejected	0	1	1.301400	0	adt-rejected	0	1	0.107618	0	adt-rejected	0
+400.perlbench.bc	S_dopoptoeval	8	9	24	1	0.001945	0	adt-rejected	0	1	0.001712	0	adt-rejected	0	1	0.001381	0	adt-rejected	0	1	0.001770	0	adt-rejected	0
+400.perlbench.bc	S_dopoptolabel	24	40	117	1	0.057956	0	adt-rejected	0	1	0.075218	0	adt-rejected	0	1	0.171000	0	adt-rejected	0	1	0.055384	0	adt-rejected	0
+400.perlbench.bc	S_dopoptoloop	21	35	96	1	0.043477	0	adt-rejected	0	1	0.093196	0	adt-rejected	0	1	0.123607	0	adt-rejected	0	1	0.042693	0	adt-rejected	0
+400.perlbench.bc	S_dopoptosub_at	8	11	22	1	0.001661	0	adt-rejected	0	1	0.001494	0	adt-rejected	0	1	0.001318	0	adt-rejected	0	1	0.001483	0	adt-rejected	0
+400.perlbench.bc	S_find_byclass	721	1123	2634	1	18.487196	0	adt-rejected	0	0				1	0				1	1	11.785233	0	adt-rejected	0
+400.perlbench.bc	S_group_end	28	39	80	1	0.032359	0	adt-rejected	0	1	0.135333	0	adt-rejected	0	1	2.394666	0	adt-rejected	0	1	0.031982	0	adt-rejected	0
+400.perlbench.bc	S_hv_delete_common	91	130	449	1	3.865473	0	adt-rejected	0	1	9.201344	0	adt-rejected	0	0				1	1	2.572276	0	adt-rejected	0
+400.perlbench.bc	S_is_an_int	18	34	89	1	0.020843	0	adt-rejected	0	1	0.025895	0	adt-rejected	0	1	0.036452	0	adt-rejected	0	1	0.018648	0	adt-rejected	0
+400.perlbench.bc	S_isa_lookup	57	88	268	1	1.061842	0	adt-rejected	0	1	7.703183	0	adt-rejected	0	1	25.044177	0	adt-rejected	0	1	1.070696	0	adt-rejected	0
+400.perlbench.bc	S_mergesortsv	89	120	517	1	5.941305	0	adt-rejected	0	0				1	0				1	1	7.476596	0	adt-rejected	0
+400.perlbench.bc	S_mulexp10	19	25	67	1	0.013603	0	adt-rejected	0	1	0.014901	0	adt-rejected	0	1	0.015953	0	adt-rejected	0	1	0.012401	0	adt-rejected	0
+400.perlbench.bc	S_my_exit_jump	20	28	192	0				0	0				0	1	0.000021	0	none	0	0				0
+400.perlbench.bc	S_next_symbol	107	165	492	1	1.195511	0	adt-rejected	0	0				1	0				1	1	0.940113	0	adt-rejected	0
+400.perlbench.bc	S_nextchar	31	46	149	1	0.061259	0	adt-rejected	0	1	0.207076	0	adt-rejected	0	1	7.178509	0	adt-rejected	0	1	0.065326	0	adt-rejected	0
+400.perlbench.bc	S_pad_findlex	94	143	525	1	1.312366	0	adt-rejected	0	1	3.930049	0	adt-rejected	0	0				1	1	0.910572	0	adt-rejected	0
+400.perlbench.bc	S_qsortsvu	122	162	866	1	16.798434	0	adt-rejected	0	0				1	0				1	1	33.271497	0	adt-rejected	0
+400.perlbench.bc	S_reg	301	459	1914	1	184.342486	0	adt-rejected	0	0				1	0				1	1	23.876489	0	adt-rejected	0
+400.perlbench.bc	S_regbranch	39	55	177	1	0.087256	0	adt-rejected	0	1	0.150040	0	adt-rejected	0	1	4.271966	0	adt-rejected	0	1	0.088438	0	adt-rejected	0
+400.perlbench.bc	S_reghopmaybe3	29	39	84	1	0.026101	0	adt-rejected	0	1	0.027425	0	adt-rejected	0	1	0.049162	0	adt-rejected	0	1	0.028025	0	adt-rejected	0
+400.perlbench.bc	S_regrepeat_hard	35	49	149	1	0.069280	0	adt-rejected	0	1	0.128811	0	adt-rejected	0	1	0.281278	0	adt-rejected	0	1	0.067130	0	adt-rejected	0
+400.perlbench.bc	S_regwhite	19	27	55	1	0.015663	0	adt-rejected	0	1	0.027376	0	adt-rejected	0	1	0.017979	0	adt-rejected	0	1	0.015947	0	adt-rejected	0
+400.perlbench.bc	S_scan_formline	66	98	335	1	0.959338	0	adt-rejected	0	1	7.673946	0	adt-rejected	0	0				1	1	1.080201	0	adt-rejected	0
+400.perlbench.bc	S_scan_ident	257	441	1143	1	52.877639	0	adt-rejected	0	0				1	0				1	1	40.021028	0	adt-rejected	0
+400.perlbench.bc	S_scan_str	193	295	1100	1	40.895975	0	adt-rejected	0	0				1	0				1	0				1
+400.perlbench.bc	S_scan_subst	31	46	165	1	0.123361	0	adt-rejected	0	1	0.167033	0	adt-rejected	0	1	0.589174	0	adt-rejected	0	1	0.047999	0	adt-rejected	0
+400.perlbench.bc	S_scan_word	52	88	268	1	0.767414	0	adt-rejected	0	0				1	0				1	1	0.929610	0	adt-rejected	0
+400.perlbench.bc	S_share_hek_flags	23	32	134	1	0.052756	0	adt-rejected	0	1	0.084144	0	adt-rejected	0	1	0.177978	0	adt-rejected	0	1	0.051201	0	adt-rejected	0
+400.perlbench.bc	S_skipspace	77	116	347	1	0.495345	0	adt-rejected	0	1	1.189469	0	adt-rejected	0	0				1	1	0.611411	0	adt-rejected	0
+400.perlbench.bc	S_sv_add_backref	14	18	86	1	0.011496	0	adt-rejected	0	1	0.017852	0	adt-rejected	0	1	0.008788	0	adt-rejected	0	1	0.011330	0	adt-rejected	0
+400.perlbench.bc	S_unshare_hek_or_pvn	50	73	262	1	0.512904	0	adt-rejected	0	1	0.777108	0	adt-rejected	0	1	9.361635	0	adt-rejected	0	1	0.483249	0	adt-rejected	0
+400.perlbench.bc	XS_HTML__Parser_handler	24	32	164	1	0.114631	0	adt-rejected	0	1	0.169596	0	adt-rejected	0	1	0.323187	0	adt-rejected	0	1	0.121122	0	adt-rejected	0
+400.perlbench.bc	XS_MIME__Base64_decode_base64	38	54	255	1	0.224322	0	adt-rejected	0	1	0.462761	0	adt-rejected	0	1	2.633697	0	adt-rejected	0	1	0.240744	0	adt-rejected	0
+400.perlbench.bc	XS_UNIVERSAL_VERSION	68	98	400	1	7.539175	0	adt-rejected	0	1	9.505302	0	adt-rejected	0	0				1	1	7.698517	0	adt-rejected	0
+400.perlbench.bc	argspec_compile	88	126	378	1	0.907316	0	adt-rejected	0	1	17.123905	0	adt-rejected	0	0				1	1	1.311888	0	adt-rejected	0
+400.perlbench.bc	decode_entities	105	154	634	1	4.596771	0	adt-rejected	0	0				1	0				1	1	96.133287	0	adt-rejected	0
+400.perlbench.bc	dynprep	48	67	268	1	0.752959	0	adt-rejected	0	1	2.278722	0	adt-rejected	0	0				1	1	2.023960	0	adt-rejected	0
+400.perlbench.bc	has_hibit	7	8	19	1	0.001194	0	adt-rejected	0	1	0.001135	0	adt-rejected	0	1	0.000960	0	adt-rejected	0	1	0.001386	0	adt-rejected	0
+400.perlbench.bc	main	7	8	38	0				0	0				0	1	0.000028	0	none	0	0				0
+400.perlbench.bc	needs_quote	30	46	95	1	0.034871	0	adt-rejected	0	1	0.149453	0	adt-rejected	0	1	3.070396	0	adt-rejected	0	1	0.032489	0	adt-rejected	0
+400.perlbench.bc	old_retrieve_array	44	60	170	1	0.082057	0	adt-rejected	0	1	0.148352	0	adt-rejected	0	1	0.303327	0	adt-rejected	0	1	0.090586	0	adt-rejected	0
+400.perlbench.bc	old_retrieve_hash	84	116	391	1	0.648128	0	adt-rejected	0	1	1.441223	0	adt-rejected	0	1	161.881584	0	adt-rejected	0	1	0.674943	0	adt-rejected	0
+400.perlbench.bc	parse	99	155	458	1	91.532657	0	adt-rejected	0	1	94.316046	0	adt-rejected	0	1	98.017476	0	adt-rejected	0	1	95.156021	0	adt-rejected	0
+400.perlbench.bc	parse_buf	135	194	531	1	5.014864	0	adt-rejected	0	0				1	0				1	1	16.861205	0	adt-rejected	0
+400.perlbench.bc	parse_comment	63	88	254	1	0.130876	0	adt-rejected	0	1	0.351292	0	adt-rejected	0	1	1.812141	0	adt-rejected	0	1	0.140245	0	adt-rejected	0
+400.perlbench.bc	parse_decl	113	163	467	1	1.705861	0	adt-rejected	0	1	12.294570	0	adt-rejected	0	0				1	1	1.731508	0	adt-rejected	0
+400.perlbench.bc	parse_marked_section	45	61	187	1	0.155772	0	adt-rejected	0	1	0.404762	0	adt-rejected	0	1	109.861573	0	adt-rejected	0	1	0.357929	0	adt-rejected	0
+400.perlbench.bc	parse_process	12	16	51	1	0.008037	0	adt-rejected	0	1	0.009218	0	adt-rejected	0	1	0.035701	0	adt-rejected	0	1	0.007682	0	adt-rejected	0
+400.perlbench.bc	parse_start	115	164	574	1	2.398446	0	adt-rejected	0	1	20.196848	0	adt-rejected	0	0				1	1	3.999852	0	adt-rejected	0
+400.perlbench.bc	perl_parse	73	110	356	1	0.961573	0	adt-rejected	0	1	1.311995	0	adt-rejected	0	1	126.744118	0	adt-rejected	0	1	0.584416	0	adt-rejected	0
+400.perlbench.bc	retrieve	150	209	690	1	1.224517	0	adt-rejected	0	1	4.973163	0	adt-rejected	0	1	48.082298	0	adt-rejected	0	1	1.321694	0	adt-rejected	0
+400.perlbench.bc	retrieve_array	34	46	145	1	0.087773	0	adt-rejected	0	1	0.135796	0	adt-rejected	0	1	0.112563	0	adt-rejected	0	1	0.087375	0	adt-rejected	0
+400.perlbench.bc	retrieve_flag_hash	92	129	426	1	0.936644	0	adt-rejected	0	1	1.748992	0	adt-rejected	0	0				1	1	0.941805	0	adt-rejected	0
+400.perlbench.bc	retrieve_hash	58	80	298	1	0.368107	0	adt-rejected	0	1	0.668416	0	adt-rejected	0	1	4.049927	0	adt-rejected	0	1	0.336056	0	adt-rejected	0
+400.perlbench.bc	retrieve_hook	225	317	1093	1	44.270954	0	adt-rejected	0	0				1	0				1	1	6.228392	0	adt-rejected	0
+400.perlbench.bc	skip_until_gt	18	26	63	1	0.014378	0	adt-rejected	0	1	0.100757	0	adt-rejected	0	1	0.064232	0	adt-rejected	0	1	0.014757	0	adt-rejected	0
+400.perlbench.bc	store_array	49	66	413	1	0.472003	0	adt-rejected	0	1	1.168338	0	adt-rejected	0	1	0.865956	0	adt-rejected	0	1	0.447626	0	adt-rejected	0
+400.perlbench.bc	store_hash	223	310	1729	1	114.244805	0	adt-rejected	0	0				1	0				1	1	78.625927	0	adt-rejected	0
+400.perlbench.bc	store_hook	306	426	2563	1	42.635059	0	adt-rejected	0	0				1	0				1	1	28.521538	0	adt-rejected	0
+400.perlbench.bc	strnEQx	20	27	69	1	0.017766	0	adt-rejected	0	1	0.081536	0	adt-rejected	0	1	0.055264	0	adt-rejected	0	1	0.018899	0	adt-rejected	0

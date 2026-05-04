@@ -2,6 +2,7 @@
 #define DATAFLOW_APA_IMPORTANCE_IMPORTANCEPOLICY_H_
 
 #include "Dataflow/APA/Importance/ImportanceModel.h"
+#include "Dataflow/APA/Core/Options.h"
 
 #include <cstddef>
 #include <vector>
@@ -16,20 +17,39 @@ public:
   using node_t = NodeT;
   using profile_t = StaticImportanceProfile<NodeT>;
   using model_t = ImportanceModel<NodeT>;
+  using state_features_t = StateEliminationImportanceFeatures;
 
-  StateEliminationImportancePolicy(const profile_t *Profile = nullptr,
-                                   const model_t *Model = nullptr)
-      : Profile(Profile), Model(Model) {}
+  explicit StateEliminationImportancePolicy(
+      EliminationOrderHeuristic Heuristic = EliminationOrderHeuristic::Original,
+      const profile_t *Profile = nullptr, const model_t *Model = nullptr)
+      : Profile(Profile), Model(Model != nullptr ? Model : &DefaultModel),
+        Heuristic(Heuristic) {}
+
+  std::size_t scoreCandidate(const state_features_t &Features) const {
+    switch (Heuristic) {
+    case EliminationOrderHeuristic::ExpressionAware:
+      return Model->scoreStateExpressionAware(Features);
+    case EliminationOrderHeuristic::StarRisk:
+      return Model->scoreStateStarRisk(Features);
+    case EliminationOrderHeuristic::LearnedCost:
+    case EliminationOrderHeuristic::MinPredSucc:
+    case EliminationOrderHeuristic::Original:
+      return Model->scoreStateStructural(Features);
+    }
+    return Model->scoreStateStructural(Features);
+  }
 
   template <typename OrderT> OrderT refineOrder(OrderT Order) const {
     return Order;
   }
 
-  bool enabled() const { return Profile != nullptr && Model != nullptr; }
+  bool enabled() const { return Model != nullptr; }
 
 private:
   const profile_t *Profile = nullptr;
+  model_t DefaultModel;
   const model_t *Model = nullptr;
+  EliminationOrderHeuristic Heuristic = EliminationOrderHeuristic::Original;
 };
 
 template <typename NodeT> class ADTImportancePolicy {
