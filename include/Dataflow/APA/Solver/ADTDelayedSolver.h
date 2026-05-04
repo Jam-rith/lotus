@@ -1,6 +1,7 @@
 #ifndef DATAFLOW_APA_ENGINES_ADTDELAYEDSOLVER_H_
 #define DATAFLOW_APA_ENGINES_ADTDELAYEDSOLVER_H_
 
+#include "Dataflow/APA/Importance/Dynamic/ADT/ADTOrdering.h"
 #include "Dataflow/APA/Solver/SolverContext.h"
 
 namespace elimination {
@@ -35,10 +36,16 @@ bool computeADTDelayedPathExpr(
   }
 
   assert(W->Left && W->Right);
-  if (!computeADTDelayedPathExpr(Ctx, R, W->Left, LeafOf)) {
+  auto *First = W->Left;
+  auto *Second = W->Right;
+  if (!shouldVisitLeftADTSubtreeFirst(W, Ctx.Opts.OrderHeuristic)) {
+    First = W->Right;
+    Second = W->Left;
+  }
+  if (!computeADTDelayedPathExpr(Ctx, R, First, LeafOf)) {
     return false;
   }
-  if (!computeADTDelayedPathExpr(Ctx, R, W->Right, LeafOf)) {
+  if (!computeADTDelayedPathExpr(Ctx, R, Second, LeafOf)) {
     return false;
   }
 

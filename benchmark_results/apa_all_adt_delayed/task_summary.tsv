@@ -1,0 +1,6 @@
+input	benchmark	order	repeat	exit_code	killed_for_stall	elapsed_sec	peak_rss_kb	completed_functions
+benchmarks/spec2006/400.perlbench.bc	400.perlbench.bc	original	1	-9	1	65.102987	346680	35
+benchmarks/spec2006/400.perlbench.bc	400.perlbench.bc	min-pred-succ	1	-9	1	65.104379	335132	35
+benchmarks/spec2006/400.perlbench.bc	400.perlbench.bc	expression-aware	1	-9	1	70.113588	309692	104
+benchmarks/spec2006/400.perlbench.bc	400.perlbench.bc	star-risk	1	-9	1	85.121328	263596	135
+benchmarks/spec2006/401.bzip2.bc	401.bzip2.bc	original	1	-9	1	65.187519	115528	19

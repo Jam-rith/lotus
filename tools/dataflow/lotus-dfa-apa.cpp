@@ -56,6 +56,11 @@ static cl::opt<std::string>
     EntryFunctionOpt("entry-function",
                      cl::desc("Entry function for interprocedural analyses"),
                      cl::init("main"));
+static cl::opt<std::string>
+    FunctionFilterOpt("function",
+                      cl::desc("Run only this defined function for "
+                               "intraprocedural analyses"),
+                      cl::init(""));
 static cl::opt<std::string> ElimMethodOpt(
     "elim-method",
     cl::desc("Elimination solver method: state|adt-simple|adt-delayed"),
@@ -77,6 +82,16 @@ static cl::opt<std::string> OrderRunSummaryOutOpt(
     "order-run-summary-out",
     cl::desc("Append per-function real runtime/memory summary rows to this TSV"),
     cl::init(""));
+static cl::opt<unsigned> OrderProgressIntervalOpt(
+    "order-progress-interval",
+    cl::desc("Print state-elimination in-function progress every N eliminated "
+             "nodes; 0 disables progress trace"),
+    cl::init(0));
+static cl::opt<double> OrderProgressTimeIntervalSecOpt(
+    "order-progress-time-interval-sec",
+    cl::desc("Print state-elimination in-function memory/progress every N "
+             "seconds; 0 disables time-based progress trace"),
+    cl::init(0.0));
 static cl::opt<bool>
     DumpProfileOpt("dump-profile",
                    cl::desc("Dump solver and path-expression profiling data"),
@@ -617,6 +632,12 @@ void runTimedAnalysis(raw_ostream &OS, const FunctionView &View,
     LocalOpts.OrderTraceTag =
         sanitizeTSVField(BaseTag + ":" + View.Function.getName().str());
   }
+  if (LocalOpts.OrderProgressInterval != 0 ||
+      LocalOpts.OrderProgressTimeIntervalSec > 0.0) {
+    LocalOpts.OrderProgressTag = sanitizeTSVField(
+        InputFilename + ":" + AnalysisOpt + ":" +
+        View.Function.getName().str());
+  }
 
   const auto Start = std::chrono::steady_clock::now();
   auto Result = Run(View.Function, LocalOpts);
@@ -895,6 +916,8 @@ int main(int argc, char **argv) {
   }
   if (!OrderModelOpt.empty())
     ElimOpts.OrderModelPath = OrderModelOpt;
+  ElimOpts.OrderProgressInterval = OrderProgressIntervalOpt;
+  ElimOpts.OrderProgressTimeIntervalSec = OrderProgressTimeIntervalSecOpt;
   OS << "[elim:" << AnalysisOpt << "]\n";
 
   if (Handler->ModuleScoped) {
@@ -908,6 +931,10 @@ int main(int argc, char **argv) {
   } else {
     lotus::dataflow_tool::forEachDefinedFunction(
         *M, OS, [&](const FunctionView &View) {
+          if (!FunctionFilterOpt.empty() &&
+              View.Function.getName() != FunctionFilterOpt) {
+            return;
+          }
           Handler->RunFunction(OS, View, ElimOpts);
         });
   }

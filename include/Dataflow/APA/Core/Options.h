@@ -82,6 +82,15 @@ struct EliminationOptions final {
   std::string OrderTracePath;
   // Frontends can use this to attach a function/benchmark identifier to rows.
   std::string OrderTraceTag;
+  // Optional human-readable solver progress trace. 0 disables it. When enabled,
+  // state elimination reports every N eliminated nodes on stderr. This is meant
+  // for diagnosing large functions that do not finish often enough to emit a
+  // per-function run-summary row.
+  std::size_t OrderProgressInterval = 0;
+  // 0 disables time-based progress. When set, state elimination also reports
+  // the current function's eliminated/total vertex count at this interval.
+  double OrderProgressTimeIntervalSec = 0.0;
+  std::string OrderProgressTag;
   // Optional linear JSON model produced by scripts/apa_train_order_model.py.
   // It is used only when OrderHeuristic is LearnedCost. Neural/MLP models are
   // intentionally reserved for one-shot static importance scoring.

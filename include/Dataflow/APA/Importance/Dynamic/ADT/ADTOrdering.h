@@ -4,6 +4,8 @@
 #include "Dataflow/APA/Importance/Dynamic/IncrementalOrderingHeap.h"
 #include "Dataflow/APA/Importance/Dynamic/LinearOrderingModel.h"
 
+#include "Dataflow/APA/Core/Options.h"
+
 #include <cstddef>
 #include <vector>
 
@@ -41,6 +43,64 @@ public:
     return Features;
   }
 };
+
+template <typename ADTNodeT> std::size_t adtRegionSize(const ADTNodeT *Node) {
+  if (!Node || Node->MaxPos < Node->MinPos) {
+    return 0;
+  }
+  return static_cast<std::size_t>(Node->MaxPos - Node->MinPos + 1);
+}
+
+template <typename ADTNodeT>
+std::size_t adtBoundaryProduct(const ADTNodeT *Node) {
+  if (!Node || Node->Leaf) {
+    return 0;
+  }
+  return Node->F.size() * Node->B.size();
+}
+
+// Lightweight ADT-local ordering. ADT composition has tree dependencies, so we
+// do not globally permute composition nodes. The legal knob is deciding which
+// child subtree to evaluate first before evaluating the parent composition.
+template <typename ADTNodeT>
+std::size_t adtSimpleOrderScore(const ADTNodeT *Node,
+                                EliminationOrderHeuristic Heuristic) {
+  if (!Node) {
+    return 0;
+  }
+  const auto Region = adtRegionSize(Node);
+  const auto Boundary = adtBoundaryProduct(Node);
+  switch (Heuristic) {
+  case EliminationOrderHeuristic::MinPredSucc:
+    return Boundary;
+  case EliminationOrderHeuristic::ExpressionAware:
+    return Boundary + Region;
+  case EliminationOrderHeuristic::StarRisk:
+    return Boundary + Region +
+           ((Node->F.empty() || Node->B.empty()) ? 0 : Region);
+  case EliminationOrderHeuristic::LearnedCost:
+  case EliminationOrderHeuristic::Original:
+    return Region;
+  }
+  return Region;
+}
+
+template <typename ADTNodeT>
+bool shouldVisitLeftADTSubtreeFirst(const ADTNodeT *Parent,
+                                    EliminationOrderHeuristic Heuristic) {
+  if (!Parent || !Parent->Left || !Parent->Right) {
+    return true;
+  }
+  if (Heuristic == EliminationOrderHeuristic::Original) {
+    return true;
+  }
+  const auto LeftScore = adtSimpleOrderScore(Parent->Left, Heuristic);
+  const auto RightScore = adtSimpleOrderScore(Parent->Right, Heuristic);
+  if (LeftScore != RightScore) {
+    return LeftScore < RightScore;
+  }
+  return adtRegionSize(Parent->Left) <= adtRegionSize(Parent->Right);
+}
 
 template <typename ADTNodeT> class ADTLinearOrderingQueue final {
 public:

@@ -6,11 +6,16 @@
 #include "Dataflow/APA/Importance/Dynamic/StateElimination/OrderTrace.h"
 #include "Dataflow/APA/Solver/SolverContext.h"
 
+#include "llvm/Support/raw_ostream.h"
+
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <fstream>
 #include <limits>
 #include <queue>
+#include <sstream>
+#include <string>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -66,6 +71,88 @@ template <typename ExprFactoryT>
 std::size_t exprSize(typename ExprFactoryT::Ref Expr) {
   std::unordered_set<const void *> Seen;
   return exprSize<ExprFactoryT>(std::move(Expr), Seen);
+}
+
+inline bool shouldReportStateProgress(const EliminationOptions &Opts,
+                                      std::size_t Step, std::size_t Total) {
+  if (Opts.OrderProgressInterval == 0 &&
+      Opts.OrderProgressTimeIntervalSec <= 0.0) {
+    return false;
+  }
+  const auto Done = Step + 1;
+  if (Done == 1 || Done == Total) {
+    return true;
+  }
+  if (Opts.OrderProgressInterval == 0) {
+    return false;
+  }
+  return Done % Opts.OrderProgressInterval == 0;
+}
+
+inline bool shouldReportStateProgressByStep(const EliminationOptions &Opts,
+                                            std::size_t Step,
+                                            std::size_t Total) {
+  if (Opts.OrderProgressInterval == 0) {
+    return false;
+  }
+  const auto Done = Step + 1;
+  return Done == 1 || Done == Total ||
+         Done % Opts.OrderProgressInterval == 0;
+}
+
+inline bool shouldReportStateProgressByTime(
+    const EliminationOptions &Opts, std::chrono::steady_clock::time_point Now,
+    std::chrono::steady_clock::time_point &LastReport) {
+  if (Opts.OrderProgressTimeIntervalSec <= 0.0) {
+    return false;
+  }
+  const auto Elapsed =
+      std::chrono::duration<double>(Now - LastReport).count();
+  if (Elapsed < Opts.OrderProgressTimeIntervalSec) {
+    return false;
+  }
+  LastReport = Now;
+  return true;
+}
+
+inline std::pair<std::size_t, std::size_t> readSelfMemoryKb() {
+  std::ifstream In("/proc/self/status");
+  std::size_t RSS = 0;
+  std::size_t Peak = 0;
+  std::string Line;
+  while (std::getline(In, Line)) {
+    if (Line.rfind("VmRSS:", 0) == 0) {
+      std::istringstream SS(Line.substr(6));
+      std::size_t Value = 0;
+      SS >> Value;
+      RSS = Value;
+    } else if (Line.rfind("VmHWM:", 0) == 0) {
+      std::istringstream SS(Line.substr(6));
+      std::size_t Value = 0;
+      SS >> Value;
+      Peak = Value;
+    }
+  }
+  return {RSS, Peak};
+}
+
+template <typename AnalysisDomainTy>
+void reportStateProgress(IntraEliminationSolverContext<AnalysisDomainTy> &Ctx,
+                         std::size_t Step, std::size_t Total,
+                         const char *Kind = "progress") {
+  if (Ctx.Opts.OrderProgressInterval == 0 &&
+      Ctx.Opts.OrderProgressTimeIntervalSec <= 0.0) {
+    return;
+  }
+
+  const auto Memory = readSelfMemoryKb();
+  llvm::errs() << "[apa-" << Kind << "]";
+  if (!Ctx.Opts.OrderProgressTag.empty()) {
+    llvm::errs() << " tag=" << Ctx.Opts.OrderProgressTag;
+  }
+  llvm::errs() << " eliminated=" << (Step + 1) << "/" << Total
+               << " rss_kb=" << Memory.first
+               << " peak_rss_kb=" << Memory.second << "\n";
 }
 
 template <typename AnalysisDomainTy>
@@ -527,6 +614,7 @@ std::vector<std::size_t> getDynamicStateEliminationOrder(
 
   std::vector<std::size_t> Order;
   Order.reserve(N);
+  auto LastTimedProgress = std::chrono::steady_clock::now();
 
   for (std::size_t Step = 0; Step < N; ++Step) {
     auto TraceRows = collectTraceRowsBeforeChoice(Step);
@@ -564,6 +652,14 @@ std::vector<std::size_t> getDynamicStateEliminationOrder(
         std::chrono::duration_cast<std::chrono::microseconds>(
             std::chrono::steady_clock::now() - EliminateStart)
             .count();
+
+    if (shouldReportStateProgressByStep(Ctx.Opts, Step, N)) {
+      reportStateProgress(Ctx, Step, N);
+    } else if (shouldReportStateProgressByTime(
+                   Ctx.Opts, std::chrono::steady_clock::now(),
+                   LastTimedProgress)) {
+      reportStateProgress(Ctx, Step, N, "memory");
+    }
 
     if (!TraceRows.empty()) {
       const auto MatrixStatsAfter =
@@ -629,9 +725,17 @@ void eliminateStateIntermediates(
   }
 
   const auto Order = getOriginalStateEliminationOrder(Ctx);
+  auto LastTimedProgress = std::chrono::steady_clock::now();
   for (std::size_t ki = 0; ki < N; ++ki) {
     const std::size_t K = Order[ki];
     eliminateStateAt(Ctx, K);
+    if (shouldReportStateProgressByStep(Ctx.Opts, ki, N)) {
+      reportStateProgress(Ctx, ki, N);
+    } else if (shouldReportStateProgressByTime(
+                   Ctx.Opts, std::chrono::steady_clock::now(),
+                   LastTimedProgress)) {
+      reportStateProgress(Ctx, ki, N, "memory");
+    }
   }
 }
 
