@@ -125,6 +125,12 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Run each function in a separate process so a timeout skips only that function.",
     )
+    parser.add_argument(
+        "--function-list",
+        type=Path,
+        default=None,
+        help="Optional newline-separated function list used with --continue-after-function-timeout.",
+    )
     return parser.parse_args()
 
 
@@ -163,6 +169,25 @@ def count_tsv_data_rows(path: Path) -> int:
     with path.open(errors="replace") as handle:
         rows = sum(1 for line in handle if line.strip())
     return max(0, rows - 1)
+
+
+def load_function_filter(path: Path | None) -> set[str] | None:
+    if path is None:
+        return None
+    names: set[str] = set()
+    for raw in path.read_text().splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        names.add(line)
+    return names
+
+
+def apply_function_filter(names: List[str] | None,
+                          allowed: set[str] | None) -> List[str] | None:
+    if names is None or allowed is None:
+        return names
+    return [name for name in names if name in allowed]
 
 
 def count_defined_functions(bitcode: Path) -> int | None:
@@ -635,9 +660,16 @@ def main() -> int:
     print(f"selected bitcodes: {len(bitcodes)}", file=sys.stderr)
     print(f"orders: {' '.join(args.orders)}", file=sys.stderr)
     print(f"stall timeout: {args.stall_timeout_sec}s", file=sys.stderr)
+    allowed_functions = load_function_filter(args.function_list)
+    if allowed_functions is not None:
+        print(f"function-list filter: {len(allowed_functions)} names", file=sys.stderr)
     function_names: Dict[Path, List[str] | None] = {}
     if args.continue_after_function_timeout:
-        function_names = {bitcode: list_defined_functions(bitcode) for bitcode in bitcodes}
+        function_names = {
+            bitcode: apply_function_filter(list_defined_functions(bitcode),
+                                           allowed_functions)
+            for bitcode in bitcodes
+        }
         total_function_tasks = sum(
             len(names or []) for names in function_names.values()
         )

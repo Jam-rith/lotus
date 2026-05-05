@@ -110,6 +110,8 @@ LiveVariablesResult runIntraElimLiveVariables(llvm::Function *F,
     auto Status = Solver.solve();
     const auto &Diag = Solver.getDiagnostics();
     OverallDiag.used_adt = OverallDiag.used_adt || Diag.used_adt;
+    OverallDiag.path_construction_us += Diag.path_construction_us;
+    OverallDiag.final_eval_us += Diag.final_eval_us;
     OverallDiag.star_iterations_total += Diag.star_iterations_total;
     OverallDiag.max_star_hit = OverallDiag.max_star_hit || Diag.max_star_hit;
     if (Diag.fallback_reason != FallbackReason::None) {

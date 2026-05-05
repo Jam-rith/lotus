@@ -78,6 +78,9 @@ parseEliminationOptions(llvm::StringRef MethodName,
   else if (OrderName == "expression-aware")
     Opts.OrderHeuristic =
         ::elimination::EliminationOrderHeuristic::ExpressionAware;
+  else if (OrderName == "expression-lookahead" || OrderName == "lookahead")
+    Opts.OrderHeuristic =
+        ::elimination::EliminationOrderHeuristic::ExpressionLookahead;
   else if (OrderName == "star-risk")
     Opts.OrderHeuristic = ::elimination::EliminationOrderHeuristic::StarRisk;
   else if (OrderName == "learned-cost" || OrderName == "learned")

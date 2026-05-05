@@ -23,6 +23,9 @@ enum class EliminationOrderHeuristic {
   MinPredSucc,
   // Estimate incremental expression growth from M[i,k], M[k,k], and M[k,j].
   ExpressionAware,
+  // Expression-aware base score plus bounded one-step look-ahead over the top
+  // heap candidates.
+  ExpressionLookahead,
   // Further penalize nodes whose self-loop closure is likely to be expensive.
   StarRisk,
   // Predict elimination cost from an offline-trained order model.
@@ -60,6 +63,8 @@ struct SolveDiagnostics final {
   EliminationOrderHeuristic executed_order =
       EliminationOrderHeuristic::Original;
   FallbackReason fallback_reason = FallbackReason::None;
+  std::size_t path_construction_us = 0;
+  std::size_t final_eval_us = 0;
   std::size_t star_iterations_total = 0;
   bool max_star_hit = false;
 };

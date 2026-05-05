@@ -28,6 +28,7 @@ public:
   std::size_t scoreCandidate(const state_features_t &Features) const {
     switch (Heuristic) {
     case EliminationOrderHeuristic::ExpressionAware:
+    case EliminationOrderHeuristic::ExpressionLookahead:
       return Model->scoreStateExpressionAware(Features);
     case EliminationOrderHeuristic::StarRisk:
       return Model->scoreStateStarRisk(Features);

@@ -23,7 +23,7 @@ cl::opt<std::string> ElimMethodOpt(
 cl::opt<std::string> ElimOrderOpt(
     "elim-order",
     cl::desc(
-        "State-elimination order: original|min-pred-succ|structural|expression-aware|star-risk|learned-cost"),
+        "State-elimination order: original|min-pred-succ|structural|expression-aware|expression-lookahead|star-risk|learned-cost"),
     cl::init("original"));
 
 cl::opt<std::string> ElimOrderModelOpt(
@@ -94,6 +94,9 @@ EliminationOptions getElimOptions() {
     Opts.OrderHeuristic = EliminationOrderHeuristic::MinPredSucc;
   } else if (ElimOrderOpt == "expression-aware") {
     Opts.OrderHeuristic = EliminationOrderHeuristic::ExpressionAware;
+  } else if (ElimOrderOpt == "expression-lookahead" ||
+             ElimOrderOpt == "lookahead") {
+    Opts.OrderHeuristic = EliminationOrderHeuristic::ExpressionLookahead;
   } else if (ElimOrderOpt == "star-risk") {
     Opts.OrderHeuristic = EliminationOrderHeuristic::StarRisk;
   } else if (ElimOrderOpt == "learned-cost" || ElimOrderOpt == "learned") {

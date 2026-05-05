@@ -13,6 +13,7 @@
 #include <chrono>
 #include <cmath>
 #include <fstream>
+#include <limits>
 #include <queue>
 #include <sstream>
 #include <string>
@@ -216,23 +217,23 @@ std::vector<std::size_t> getDynamicStateEliminationOrder(
     IntraEliminationSolverContext<AnalysisDomainTy> &Ctx) {
   using Context = IntraEliminationSolverContext<AnalysisDomainTy>;
   using HeapEntry = std::pair<double, std::size_t>;
-  using importance_collector_t =
-      StateEliminationImportanceCollector<typename Context::expr_factory_t>;
+  using importance_t =
+      StateEliminationImportance<typename Context::ProblemTy,
+                                 typename Context::expr_factory_t>;
 
   const auto N = Ctx.Nodes.size();
   std::vector<bool> Alive(N, true);
   std::priority_queue<HeapEntry, std::vector<HeapEntry>, std::greater<HeapEntry>>
       MinHeap;
-  importance_collector_t ImportanceCollector(Ctx.Exprs);
-  StateEliminationImportancePolicy<std::size_t> ImportancePolicy(
-      Ctx.Opts.OrderHeuristic);
+  importance_t Importance(Ctx.Problem, Ctx.Nodes, Ctx.Exprs,
+                          Ctx.Opts.OrderHeuristic);
   LinearOrderingModel LinearModel;
   const bool UseLinearModel =
       Ctx.Opts.OrderHeuristic == EliminationOrderHeuristic::LearnedCost &&
       LinearModel.loadFromFile(Ctx.Opts.OrderModelPath);
 
   auto baseFeatureScore = [&](std::size_t Node) {
-    return ImportanceCollector.score(Ctx.Matrix, Alive, Node, ImportancePolicy);
+    return Importance.score(Ctx.Matrix, Alive, Node);
   };
 
   auto buildOrderTraceRow = [&](std::size_t Step, std::size_t Node,
@@ -242,21 +243,173 @@ std::vector<std::size_t> getDynamicStateEliminationOrder(
     Row.Step = Step;
     Row.NodeIndex = Node;
     Row.Score = baseFeatureScore(Node);
-    Row.Candidate = ImportanceCollector.collect(Ctx.Matrix, Alive, Node).Candidate;
+    Row.Candidate = Importance.collect(Ctx.Matrix, Alive, Node).Candidate;
     Row.MatrixBefore = MatrixStats;
     return Row;
   };
 
   auto buildLightweightOrderRow = [&](std::size_t Node,
                                       const OrderingFeatureNeeds &Needs) {
-    auto Row =
-        ImportanceCollector.collectOrderTraceRow(Ctx.Matrix, Alive, Node, Needs);
-    Row.Score = baseFeatureScore(Node);
-    return Row;
+    return Importance.collectOrderTraceRow(Ctx.Matrix, Alive, Node, Needs);
   };
 
   auto nodeScore = [&](std::size_t Node) {
     return static_cast<double>(baseFeatureScore(Node));
+  };
+
+  auto estimateLookaheadPenalty = [&](std::size_t Node) {
+    // Lightweight one-step shadow look-ahead. This intentionally does not copy
+    // or mutate the expression matrix. It estimates the local future damage of
+    // eliminating Node by looking at the currently affected neighborhood.
+    if (Node >= N || !Alive[Node]) {
+      return std::numeric_limits<double>::infinity();
+    }
+
+    std::vector<std::size_t> Preds;
+    std::vector<std::size_t> Succs;
+    Preds.reserve(N);
+    Succs.reserve(N);
+    for (std::size_t Other = 0; Other < N; ++Other) {
+      if (Other == Node || !Alive[Other]) {
+        continue;
+      }
+      if (!Context::expr_factory_t::isZero(Ctx.Matrix[Other][Node])) {
+        Preds.push_back(Other);
+      }
+      if (!Context::expr_factory_t::isZero(Ctx.Matrix[Node][Other])) {
+        Succs.push_back(Other);
+      }
+    }
+
+    std::size_t FillInAfterNode = 0;
+    for (const auto Pred : Preds) {
+      for (const auto Succ : Succs) {
+        if (Pred == Succ || !Alive[Pred] || !Alive[Succ]) {
+          continue;
+        }
+        if (Context::expr_factory_t::isZero(Ctx.Matrix[Pred][Succ])) {
+          ++FillInAfterNode;
+        }
+      }
+    }
+
+    auto shadowNeighborScore = [&](std::size_t Neighbor) {
+      if (Neighbor >= N || Neighbor == Node || !Alive[Neighbor]) {
+        return std::numeric_limits<double>::infinity();
+      }
+
+      std::size_t PredCount = 0;
+      std::size_t SuccCount = 0;
+      for (std::size_t Other = 0; Other < N; ++Other) {
+        if (Other == Neighbor || Other == Node || !Alive[Other]) {
+          continue;
+        }
+        bool HasPred = !Context::expr_factory_t::isZero(
+            Ctx.Matrix[Other][Neighbor]);
+        bool HasSucc = !Context::expr_factory_t::isZero(
+            Ctx.Matrix[Neighbor][Other]);
+
+        // Approximate new bypass edges created by eliminating Node. If
+        // Other->Node and Node->Neighbor exist, Other becomes a predecessor of
+        // Neighbor. Symmetrically, Neighbor becomes connected to Node's
+        // successors.
+        if (!HasPred) {
+          const bool OtherReachesNode =
+              !Context::expr_factory_t::isZero(Ctx.Matrix[Other][Node]);
+          const bool NodeReachesNeighbor =
+              !Context::expr_factory_t::isZero(Ctx.Matrix[Node][Neighbor]);
+          HasPred = OtherReachesNode && NodeReachesNeighbor;
+        }
+        if (!HasSucc) {
+          const bool NeighborReachesNode =
+              !Context::expr_factory_t::isZero(Ctx.Matrix[Neighbor][Node]);
+          const bool NodeReachesOther =
+              !Context::expr_factory_t::isZero(Ctx.Matrix[Node][Other]);
+          HasSucc = NeighborReachesNode && NodeReachesOther;
+        }
+
+        if (HasPred) {
+          ++PredCount;
+        }
+        if (HasSucc) {
+          ++SuccCount;
+        }
+      }
+      return static_cast<double>(PredCount * SuccCount);
+    };
+
+    double MinFutureCost = std::numeric_limits<double>::infinity();
+    for (const auto Pred : Preds) {
+      MinFutureCost = std::min(MinFutureCost, shadowNeighborScore(Pred));
+    }
+    for (const auto Succ : Succs) {
+      MinFutureCost = std::min(MinFutureCost, shadowNeighborScore(Succ));
+    }
+    if (!std::isfinite(MinFutureCost)) {
+      MinFutureCost = 0.0;
+    }
+
+    return 0.5 * MinFutureCost + 0.2 * static_cast<double>(FillInAfterNode);
+  };
+
+  auto chooseLookaheadCandidate = [&]() {
+    constexpr std::size_t LookaheadBudget = 16;
+    std::vector<HeapEntry> Popped;
+    std::vector<std::size_t> Candidates;
+    Popped.reserve(LookaheadBudget * 2);
+    Candidates.reserve(LookaheadBudget);
+
+    while (!MinHeap.empty() && Candidates.size() < LookaheadBudget) {
+      const auto Entry = MinHeap.top();
+      MinHeap.pop();
+      Popped.push_back(Entry);
+      const auto Node = Entry.second;
+      if (!Alive[Node]) {
+        continue;
+      }
+
+      const auto CurrentScore = nodeScore(Node);
+      if (std::abs(Entry.first - CurrentScore) >= 1e-9) {
+        MinHeap.emplace(CurrentScore, Node);
+        continue;
+      }
+      Candidates.push_back(Node);
+    }
+
+    for (const auto &Entry : Popped) {
+      const auto Node = Entry.second;
+      if (Node < Alive.size() && Alive[Node]) {
+        MinHeap.emplace(nodeScore(Node), Node);
+      }
+    }
+
+    if (Candidates.empty()) {
+      while (true) {
+        const auto Entry = MinHeap.top();
+        MinHeap.pop();
+        const auto Node = Entry.second;
+        if (!Alive[Node]) {
+          continue;
+        }
+        const auto CurrentScore = nodeScore(Node);
+        if (std::abs(Entry.first - CurrentScore) < 1e-9) {
+          return Node;
+        }
+        MinHeap.emplace(CurrentScore, Node);
+      }
+    }
+
+    auto BestNode = Candidates.front();
+    auto BestScore =
+        nodeScore(BestNode) + estimateLookaheadPenalty(BestNode);
+    for (const auto Node : Candidates) {
+      const auto Score = nodeScore(Node) + estimateLookaheadPenalty(Node);
+      if (Score < BestScore || (Score == BestScore && Node < BestNode)) {
+        BestNode = Node;
+        BestScore = Score;
+      }
+    }
+    return BestNode;
   };
 
   OrderTraceMatrixStats LinearMatrixStatsCache;
@@ -360,6 +513,9 @@ std::vector<std::size_t> getDynamicStateEliminationOrder(
     std::size_t K = 0;
     if (UseLinearModel) {
       K = LearnedHeap.popMin();
+    } else if (Ctx.Opts.OrderHeuristic ==
+               EliminationOrderHeuristic::ExpressionLookahead) {
+      K = chooseLookaheadCandidate();
     } else {
       while (true) {
         const auto Entry = MinHeap.top();
@@ -450,6 +606,8 @@ void eliminateStateIntermediates(
   const auto N = Ctx.Nodes.size();
   if (Ctx.Opts.OrderHeuristic == EliminationOrderHeuristic::MinPredSucc ||
       Ctx.Opts.OrderHeuristic == EliminationOrderHeuristic::ExpressionAware ||
+      Ctx.Opts.OrderHeuristic ==
+          EliminationOrderHeuristic::ExpressionLookahead ||
       Ctx.Opts.OrderHeuristic == EliminationOrderHeuristic::StarRisk ||
       Ctx.Opts.OrderHeuristic == EliminationOrderHeuristic::LearnedCost) {
     getDynamicStateEliminationOrder(Ctx);
@@ -475,13 +633,16 @@ template <typename AnalysisDomainTy>
 bool materializeStateResults(
     IntraEliminationSolverContext<AnalysisDomainTy> &Ctx) {
   using Context = IntraEliminationSolverContext<AnalysisDomainTy>;
+  const auto EvalStart = std::chrono::steady_clock::now();
   Ctx.Results = typename Context::result_t{};
   if (Ctx.Nodes.empty()) {
+    Ctx.Diagnostics.final_eval_us = 0;
     return true;
   }
 
   const auto EntryIt = Ctx.Index.find(Ctx.Problem.entry());
   if (EntryIt == Ctx.Index.end()) {
+    Ctx.Diagnostics.final_eval_us = 0;
     return false;
   }
   const auto EntryIdx = EntryIt->second;
@@ -496,14 +657,27 @@ bool materializeStateResults(
       Ctx.Results.IN(N) = Ctx.eval(E, Init);
     }
   }
+  Ctx.Diagnostics.final_eval_us =
+      static_cast<std::size_t>(std::chrono::duration_cast<
+                               std::chrono::microseconds>(
+                                   std::chrono::steady_clock::now() -
+                                   EvalStart)
+                                   .count());
   return true;
 }
 
 template <typename AnalysisDomainTy>
 bool solveStateElimination(
     IntraEliminationSolverContext<AnalysisDomainTy> &Ctx) {
+  const auto BuildStart = std::chrono::steady_clock::now();
   buildStateEliminationMatrix(Ctx);
   eliminateStateIntermediates(Ctx);
+  Ctx.Diagnostics.path_construction_us =
+      static_cast<std::size_t>(std::chrono::duration_cast<
+                               std::chrono::microseconds>(
+                                   std::chrono::steady_clock::now() -
+                                   BuildStart)
+                                   .count());
   return materializeStateResults(Ctx);
 }
 

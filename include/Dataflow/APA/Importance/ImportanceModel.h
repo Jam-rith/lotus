@@ -4,6 +4,7 @@
 #include "Dataflow/APA/Importance/Dynamic/StateElimination/EliminationMatrixStats.h"
 #include "Dataflow/APA/Importance/Static/StaticImportanceProfile.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <limits>
 
@@ -34,6 +35,7 @@ struct ImportanceModelConfig final {
 // equations that turn those facts into costs.
 struct StateEliminationImportanceFeatures final {
   EliminationCandidateStats Candidate;
+  StaticNodeImportance<std::size_t> Static;
   std::size_t SelfExprSize = 0;
   std::size_t MatrixNodeCount = 0;
   bool HasNontrivialSelfLoop = false;
@@ -60,16 +62,18 @@ public:
 
   std::size_t scoreStateStructural(
       const StateEliminationImportanceFeatures &Features) const {
-    return saturatingMul(Features.Candidate.AlivePredCount,
-                         Features.Candidate.AliveSuccCount);
+    return saturatingAdd(
+        saturatingMul(Features.Candidate.AlivePredCount,
+                      Features.Candidate.AliveSuccCount),
+        staticOrderingPenalty(Features));
   }
 
   std::size_t scoreStateExpressionAware(
       const StateEliminationImportanceFeatures &Features) const {
     return saturatingAdd(
-        expressionCrossProductCost(Features),
-        saturatingMul(Features.Candidate.FillInCount,
-                      static_cast<std::size_t>(1)));
+        saturatingAdd(expressionCrossProductCost(Features),
+                      Features.Candidate.FillInCount),
+        staticOrderingPenalty(Features));
   }
 
   std::size_t scoreStateStarRisk(
@@ -124,6 +128,41 @@ private:
         std::max<std::size_t>(1, expressionWeight(Features.Candidate.SelfExprStats));
     const auto InputCost = saturatingAdd(Incoming, saturatingAdd(Self, Outgoing));
     return saturatingMul(Crosses, InputCost);
+  }
+
+  static std::size_t
+  staticOrderingPenalty(const StateEliminationImportanceFeatures &Features) {
+    const auto &Static = Features.Static;
+    std::size_t Penalty = 0;
+
+    // Preserve interface/control nodes longer. Eliminating them early often
+    // creates wider cross-products than their current alive degree suggests.
+    Penalty = saturatingAdd(Penalty,
+                            saturatingMul(Static.BoundaryScore,
+                                          std::max<std::size_t>(
+                                              1, Features.MatrixNodeCount)));
+    Penalty = saturatingAdd(Penalty,
+                            saturatingMul(Static.InOutProduct,
+                                          static_cast<std::size_t>(2)));
+
+    if (Static.IsEntry || Static.IsExit) {
+      Penalty = saturatingAdd(Penalty, Features.MatrixNodeCount);
+    }
+    if (Static.IsBranch || Static.IsJoin) {
+      Penalty = saturatingAdd(Penalty, Static.InDegree + Static.OutDegree);
+    }
+    if (Static.IsLoopHeader || Static.IsLoopLatch || Static.HasSelfLoop) {
+      Penalty =
+          saturatingAdd(Penalty, saturatingMul(Features.MatrixNodeCount,
+                                               static_cast<std::size_t>(2)));
+    }
+
+    // Linear interior nodes are usually safe to eliminate early. Do not add a
+    // static penalty for them beyond whatever dynamic score they currently have.
+    if (Static.IsCompressibleLinear && Penalty > 0) {
+      Penalty /= 2;
+    }
+    return Penalty;
   }
 
   ImportanceModelConfig Config;

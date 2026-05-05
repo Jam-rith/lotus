@@ -4,8 +4,10 @@
 #include "Dataflow/APA/Importance/ImportancePolicy.h"
 #include "Dataflow/APA/Importance/Dynamic/StateElimination/EliminationMatrixStats.h"
 #include "Dataflow/APA/Importance/Dynamic/StateElimination/OrderTrace.h"
+#include "Dataflow/APA/Importance/Static/StaticImportanceBuilder.h"
 
 #include <cstddef>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -132,6 +134,90 @@ private:
   }
 
   const ExprFactoryT &Exprs;
+};
+
+// State-elimination importance front-end used by the solver. It owns all
+// feature collection for ordering: static CFG facts are computed once, while
+// dynamic matrix facts are collected from the current alive matrix on demand.
+template <typename ProblemT, typename ExprFactoryT>
+class StateEliminationImportance final {
+public:
+  using node_t = typename ProblemT::n_t;
+  using expr_ref_t = typename ExprFactoryT::Ref;
+  using matrix_t = std::vector<std::vector<expr_ref_t>>;
+
+  StateEliminationImportance(const ProblemT &Problem,
+                             const std::vector<node_t> &Nodes,
+                             const ExprFactoryT &Exprs,
+                             EliminationOrderHeuristic Heuristic)
+      : Nodes(Nodes), Collector(Exprs), Policy(Heuristic) {
+    StaticProfile = StaticImportanceBuilder<ProblemT>().build(Problem);
+    IndexStaticFacts();
+  }
+
+  StateEliminationImportanceFeatures collect(const matrix_t &Matrix,
+                                             const std::vector<bool> &Alive,
+                                             std::size_t Node) const {
+    auto Features = Collector.collect(Matrix, Alive, Node);
+    if (Node < StaticByIndex.size()) {
+      Features.Static = StaticByIndex[Node];
+    }
+    return Features;
+  }
+
+  std::size_t score(const matrix_t &Matrix, const std::vector<bool> &Alive,
+                    std::size_t Node) const {
+    return Policy.scoreCandidate(collect(Matrix, Alive, Node));
+  }
+
+  OrderTraceRow collectOrderTraceRow(const matrix_t &Matrix,
+                                     const std::vector<bool> &Alive,
+                                     std::size_t Node,
+                                     const OrderingFeatureNeeds &Needs) const {
+    auto Row = Collector.collectOrderTraceRow(Matrix, Alive, Node, Needs);
+    Row.Score = score(Matrix, Alive, Node);
+    return Row;
+  }
+
+private:
+  void IndexStaticFacts() {
+    StaticByIndex.assign(Nodes.size(), StaticNodeImportance<std::size_t>());
+    for (std::size_t Index = 0; Index < Nodes.size(); ++Index) {
+      const auto *Info = StaticProfile.findNodeImportance(Nodes[Index]);
+      if (Info == nullptr) {
+        continue;
+      }
+
+      StaticNodeImportance<std::size_t> Normalized;
+      Normalized.InDegree = Info->InDegree;
+      Normalized.OutDegree = Info->OutDegree;
+      Normalized.InOutProduct = Info->InOutProduct;
+      Normalized.IsEntry = Info->IsEntry;
+      Normalized.IsExit = Info->IsExit;
+      Normalized.IsBranch = Info->IsBranch;
+      Normalized.IsJoin = Info->IsJoin;
+      Normalized.IsLinear = Info->IsLinear;
+      Normalized.IsCompressibleLinear = Info->IsCompressibleLinear;
+      Normalized.HasSelfLoop = Info->HasSelfLoop;
+      Normalized.InLoop = Info->InLoop;
+      Normalized.BackEdgeInCount = Info->BackEdgeInCount;
+      Normalized.BackEdgeOutCount = Info->BackEdgeOutCount;
+      Normalized.IsLoopHeader = Info->IsLoopHeader;
+      Normalized.IsLoopLatch = Info->IsLoopLatch;
+      Normalized.IsBoundary = Info->IsBoundary;
+      Normalized.BoundaryScore = Info->BoundaryScore;
+      Normalized.HasDominatorInfo = Info->HasDominatorInfo;
+      Normalized.DominatorChildren = Info->DominatorChildren;
+      Normalized.DominatedCount = Info->DominatedCount;
+      StaticByIndex[Index] = Normalized;
+    }
+  }
+
+  std::vector<node_t> Nodes;
+  StaticImportanceProfile<node_t> StaticProfile;
+  std::vector<StaticNodeImportance<std::size_t>> StaticByIndex;
+  StateEliminationImportanceCollector<ExprFactoryT> Collector;
+  StateEliminationImportancePolicy<std::size_t> Policy;
 };
 
 } // namespace elimination
